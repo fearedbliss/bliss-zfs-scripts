@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# Simplified BSD License
+#
+# Copyright (C) 2013 Jonathan Vasquez <jvasquez1011@gmail.com>
+# All Rights Reserved
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met: 
+#
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer. 
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution. 
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Variables
+NAME="Bliss Snapshot Cleaner"
+AUTHOR="Jonathan Vasquez"
+EMAIL="jvasquez1011@gmail.com"
+CONTACT="${AUTHOR} <${EMAIL}>"
+VERSION="1.0.0"
+LICENSE="Simplified BSD License"
+
+# Pool
+POOL=""
+
+# Application Path
+ZFS="/sbin/zfs"
+
+# Passthrough (Just delete the snapshots without asking for confirmation)
+# 1st Parameter = Force (--force, -f, -pt)
+# 2nd Parameter = Name of Pool
+if [ ! -z "${1}" ]; then
+
+	case ${1} in
+	--force|-f|-pt)
+		PT="1"
+
+		if [ ! -z "${2}" ]; then
+			POOL="${2}"
+		else
+			exit
+		fi
+		;;
+	*)
+		exit
+		;;
+	esac
+fi
+
+# Get the date in parts
+MONTH="$(date +%m)"
+DAY="$(date +%d)"
+YEAR="$(date +%y)"
+
+TOTAL="${MONTH}_${DAY}_${YEAR}"
+
+# This will be the date used to removed any snapshots that are equal to
+# that day or older
+SLICE="$((MONTH - 1))_${DAY}_${YEAR}"
+
+# Will be used for statistical purposes later
+START_SNAPS="" # Will be set later
+END_SNAPS=""   # Will be set later
+SNAPS_LEFT=""  # will be set later
+
+# Message that will be displayed at the top of the screen
+header()
+{
+        echo -e "-----------------------------------"
+        echo -e "\e[38;5;228m| ${NAME} - v${VERSION}\e[0;m"
+        echo -e "\e[38;5;229m| Author: ${CONTACT}\e[0;m"
+        echo -e "\e[38;5;230m| Distributed under the ${LICENSE}\e[0;m"
+        echo -e "-----------------------------------"
+}
+
+# Gets all the snapshots that zfs currently has stored
+buildArray()
+{
+	DATA=($(${ZFS} list -t snapshot | grep ${POOL}@ | cut -d "@" -f 2 | cut -d " " -f 1))
+}
+
+# Prints snapshot statistical data
+snapsStats()
+{
+	einfo "Starting Snapshots: ${1}"
+	einfo "Remaining Snapshots: ${2}"
+	einfo "Snapshots Deleted: ${3}"
+}
+
+# Deletes the snapshot and all of its children snapshots
+deleteSnapshot()
+{
+	# 1st parameter = snapshot data
+
+	ewarn "Deleting Snapshot: ${POOL}@${1}"
+
+	${ZFS} destroy -r ${POOL}@${1}
+}
+
+# Displays the number of Snapshots that are Queued for deletion
+queueAmount()
+{
+	einfo "Number of Snapshots in Queue: ${#SNAPS_TO_DELETE[@]}";
+}
+
+# Prints the Queue
+queuePrint()
+{
+	local x="${#SNAPS_TO_DELETE[@]}"
+
+	for i in $(seq 0 $((${x} - 1))); do
+		einfo "Snapshot ${i}: ${SNAPS_TO_DELETE[${i}]}"
+	done
+}
+
+# Adds a date to the Queue
+queueAdd()
+{
+	local x="${#SNAPS_TO_DELETE[@]}"
+
+	SNAPS_TO_DELETE[${x}]="${1}"
+}
+
+# Deletes all the snapshots in the Queue
+queueWipe()
+{
+	local x="${#SNAPS_TO_DELETE[@]}"
+
+	for i in $(seq 0 $((${x} - 1))); do
+		deleteSnapshot ${SNAPS_TO_DELETE[${i}]}
+	done
+	
+}
+
+# Compares the dates and if it finds an old snapshot, it adds it to the Queue
+compareDate()
+{
+	# 1st parameter = slice
+	# 2nd parameter = snapshot date
+
+	local OLD_MONTH="$(echo ${2} | cut -d "_" -f 1)"
+	local OLD_DAY="$(echo ${2} | cut -d "_" -f 2)"
+	local OLD_YEAR="$(echo ${2} | cut -d "_" -f 3)"
+
+	echeck "Checking Snapshot: ${2}"
+
+	if [ "${OLD_YEAR}" -le $((YEAR-1)) ]; then
+		queueAdd ${2}
+	elif [ "${OLD_MONTH}" -le $((MONTH-1)) ]; then
+		if [ "${OLD_DAY}" -le ${DAY} ]; then
+			queueAdd ${2}
+		else
+			# The snapshot is from a previous month but the day
+			# is not less than day itself is not less than today's
+			# date. So we will check to see if the month is at least
+			# 2 months older than our current month.
+			if [ "${OLD_MONTH}" -le $((MONTH-2)) ]; then
+				queueAdd ${2}
+			fi
+		fi
+	fi
+}
+
+# Utility Functions
+
+# Used for displaying information
+einfo()
+{
+        eline && echo -e "\e[1;32m>>>\e[0;m ${@}"
+}
+
+# Used for input (questions)
+eqst()
+{
+        eline && echo -en "\e[1;37m>>>\e[0;m ${@}"
+}
+
+# Used for warnings
+ewarn()
+{
+        eline && echo -e "\e[1;33m>>>\e[0;m ${@}"
+}
+
+# Used for when checking snapshots
+echeck()
+{
+        eline && echo -e "\e[1;34m>>>\e[0;m ${@}"
+}
+
+# Used for errors
+die()
+{
+        eline && echo -e "\e[1;31m>>>\e[0;m ${@}" && eline && exit
+}
+
+# Prints empty line
+eline()
+{
+	echo ""
+}
+
+#######################################################################
+# The main entry point starts here
+#######################################################################
+
+clear
+header
+einfo "Today's Date: ${TOTAL}"
+
+if [ -z ${POOL} ]; then
+	eqst "Enter the pool's name: " && read POOL
+
+	if [ -z ${POOL} ]; then
+		die "No pool specified. Exiting."
+	fi
+fi
+
+# Get the snapshots and build an array
+buildArray
+
+# How many snapshots do we currently have?
+START_SNAPS="${#DATA[@]}"
+
+einfo "Current number of Snapshots: ${START_SNAPS}"
+ewarn "All Snapshots Older than ${SLICE} will be deleted!"
+
+# How many snapshots are in the Queue ready to be deleted?
+queueAmount
+
+if [ "${PT}" == 1 ]; then
+	# Runs through all the snapshots and adds any old ones to the Queue
+	for i in $(seq 0 $((${#DATA[@]} - 1))); do
+		compareDate ${SLICE} ${DATA[${i}]}
+	done
+
+	if [ "${#SNAPS_TO_DELETE[@]}" -gt 0 ]; then
+		einfo "These are the snapshots that will be deleted: "
+
+		queuePrint
+		queueAmount
+		queueWipe
+	fi
+
+	# Build a new array just for statistical purposes
+	buildArray
+
+	END_SNAPS="${#DATA[@]}"
+	SNAPS_LEFT=$((START_SNAPS - END_SNAPS))
+
+	# Statistics Data of Snapshots
+	snapsStats ${START_SNAPS} ${END_SNAPS} ${SNAPS_LEFT}
+else
+	# Ask to proceed
+	eqst "Proceed [y/N]: " && read CHOICE
+
+	case ${CHOICE} in
+	y|Y)
+		unset CHOICE
+
+		# Runs through all the snapshots and adds any old ones to the Queue
+		for i in $(seq 0 $((${#DATA[@]} - 1))); do
+			compareDate ${SLICE} ${DATA[${i}]}
+		done
+
+		if [ "${#SNAPS_TO_DELETE[@]}" -gt 0 ]; then
+			einfo "These are the snapshots that will be deleted: "
+
+			queuePrint
+			queueAmount
+
+			eqst "Are you sure you want to remove the above snapshots [y/N]: " && read CHOICE
+
+			case ${CHOICE} in
+			y|Y)
+				queueWipe
+				;;
+			n|N|*)
+				die "These snapshots Will not be deleted. Exiting."
+				;;
+			esac
+		fi
+
+		# Build a new array just for statistical purposes
+		buildArray
+
+		END_SNAPS="${#DATA[@]}"
+		SNAPS_LEFT=$((START_SNAPS - END_SNAPS))
+
+		# Statistics Data of Snapshots
+		snapsStats ${START_SNAPS} ${END_SNAPS} ${SNAPS_LEFT}
+		;;
+	n|N|*)
+		die "Exiting"
+		;;
+	esac
+fi

@@ -1,0 +1,22 @@
+If you run the clean_snapshot script without parameters, it will run
+interactively.
+
+You can run the script with no interaction by passing the --force, -f, or 
+-pt (passthrough) flag and the pool's name.
+
+Example: # clean_snapshots -f rpool
+
+
+This is an example crontab. I will use mine as an example:
+
+# Run a scrub every week
+00 05 * * 0 /usr/local/sbin/zpool_scrub rpool
+
+# Take a snapshot twice a day
+00 00,12 * * * /usr/local/sbin/zfs_snapshot rpool
+
+# Check the pool health twice a day
+00 00,12 * * * /usr/local/sbin/check_zfs_pool
+
+# Clean snapshots once a month
+05 01 01 * * /usr/local/sbin/clean_snapshots -f rpool

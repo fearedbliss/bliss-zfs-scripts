@@ -1,0 +1,13 @@
+Bliss ZFS Scripts - v1.0.0
+Jonathan Vasquez <jvasquez1011@gmail.com>
+
+Distributed under the Simplified BSD License which can be found in the LICENSE file.
+
+This is a collection of scripts that I use to manage my zfs setup at home.
+
+1) zfs_snapshot        - Takes a recursive snapshot of your pool
+2) clean_snapshots     - Deletes snapshots older than 30 days
+3) check_zfs_pool      - Checks the pools health. If degraded, it sends you an email
+4) zpool_scrub         - Scrubs the pool
+
+These scripts are designed to be used as cronjobs.
