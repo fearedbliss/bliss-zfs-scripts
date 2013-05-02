@@ -1,0 +1,12 @@
+1.0.1
+----------
+clean_snapshots:
+- Fixed a bug where the cleaner would delete snapshots that were equal to and
+  older than the 30th day. Example: If today was 5/1/13, it would delete the
+  4/1/13 snapshot. It is only suppose to delete anything _older_ than 4/1/13,
+  not anything older _and_ equal to 4/1/13.
+- Fixed the explanation of a comment since it was confusing.
+
+1.0.0
+----------
+- Initial Release

@@ -30,7 +30,7 @@ NAME="Bliss Snapshot Cleaner"
 AUTHOR="Jonathan Vasquez"
 EMAIL="jvasquez1011@gmail.com"
 CONTACT="${AUTHOR} <${EMAIL}>"
-VERSION="1.0.0"
+VERSION="1.0.1"
 LICENSE="Simplified BSD License"
 
 # Pool
@@ -160,13 +160,13 @@ compareDate()
 	if [ "${OLD_YEAR}" -le $((YEAR-1)) ]; then
 		queueAdd ${2}
 	elif [ "${OLD_MONTH}" -le $((MONTH-1)) ]; then
-		if [ "${OLD_DAY}" -le ${DAY} ]; then
+		if [ "${OLD_DAY}" -lt ${DAY} ]; then
 			queueAdd ${2}
 		else
-			# The snapshot is from a previous month but the day
-			# is not less than day itself is not less than today's
-			# date. So we will check to see if the month is at least
-			# 2 months older than our current month.
+			# The snapshot is from a previous month, but the day
+			# is not less than today's date. So we will check to 
+                        # see if the month is at least two months older than
+                        # our current month.
 			if [ "${OLD_MONTH}" -le $((MONTH-2)) ]; then
 				queueAdd ${2}
 			fi
