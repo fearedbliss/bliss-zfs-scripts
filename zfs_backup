@@ -23,7 +23,7 @@ class Backup:
 
 	# Checks parameters and running user
 	def welcome(self):
-		user = self.run("whoami")
+		user = check_output(["whoami"], universal_newlines=True).strip()
 
 		if user != "root":
 			self.die("This program must be ran as root")
