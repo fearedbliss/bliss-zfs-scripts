@@ -1,13 +1,18 @@
-Bliss ZFS Scripts - v1.0.1
+Bliss ZFS Scripts
 Jonathan Vasquez <jvasquez1011@gmail.com>
 
-Distributed under the Simplified BSD License which can be found in the LICENSE file.
+Distributed under the MPL 2.0 which can be found in the LICENSE file.
 
 This is a collection of scripts that I use to manage my zfs setup at home.
 
-1) zfs_snapshot        - Takes a recursive snapshot of your pool
-2) clean_snapshots     - Deletes snapshots older than 30 days
+1) zfs_snapshot        - Takes a snapshot of a dataset
+2) clean_snapshots     - Deletes snapshots older than 30 days (currently being rewritten in Python)
 3) check_zfs_pool      - Checks the pools health. If degraded, it sends you an email
 4) zpool_scrub         - Scrubs the pool
+5) zfs_backup          - Backups up your datasets automatically
 
-These scripts are designed to be used as cronjobs.
+--
+*) tank_snapshot       - Example file of something you might put in your cronjob (wrapper around zfs_snapshot)
+*) tank_backup         - Example file of something you might put in your cronjob (wrapper around zfs_backup)
+
+These scripts can be used as cronjobs.

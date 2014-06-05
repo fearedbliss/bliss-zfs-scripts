@@ -5,18 +5,23 @@ You can run the script with no interaction by passing the --force, -f, or
 -pt (passthrough) flag and the pool's name.
 
 Example: # clean_snapshots -f rpool
-
+----------------------
 
 This is an example crontab. I will use mine as an example:
 
 # Run a scrub every week
-00 05 * * 0 /usr/local/sbin/zpool_scrub rpool
+00 05 * * 0 /usr/local/sbin/zpool_scrub tank
 
-# Take a snapshot twice a day
-00 00,12 * * * /usr/local/sbin/zfs_snapshot rpool
+# Take a snapshot twice a day (See the tank_snapshot file)
+00 00,12 * * * /usr/local/sbin/tank_snapshot
 
 # Check the pool health twice a day
 00 00,12 * * * /usr/local/sbin/check_zfs_pool
 
-# Clean snapshots once a month
-05 01 01 * * /usr/local/sbin/clean_snapshots -f rpool
+# Backup your datasets to a target pool once a day (See the tank_backup file)
+05 00 * * * /usr/local/sbin/tank_backup
+
+# Clean snapshots once a month (I don't use this since in the cronjob,
+# since I do manual backups and need a common snapshot to do incremental backups)
+# I only clean my snapshots after I've updated my backup pools.
+# 05 01 01 * * /usr/local/sbin/clean_snapshots -f rpool

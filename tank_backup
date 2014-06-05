@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Backup the following datasets into the 'backup' pool
+zfs_backup backup \
+	tank/gentoo/root \
+	tank/gentoo/home \
+	tank/gentoo/src \
+	tank/gentoo/portage

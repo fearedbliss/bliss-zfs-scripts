@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+
+# Copyright 2014 Jonathan Vasquez <jvasquez1011@gmail.com>
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+import sys
+
+from subprocess import call 
+from subprocess import check_output
+from subprocess import CalledProcessError
+
+# Interface: zfs_backup <backup pool> <datasets>*
+# Example: zfs_backup backup tank/gentoo/root tank/gentoo/home  ...
+
+class Backup:
+	def __init__(self):
+		self.datasets = []
+		self.source_pool = ""
+		self.backup_pool = ""
+
+	# Checks parameters and running user
+	def welcome(self):
+		user = self.run("whoami")
+
+		if user != "root":
+			self.die("This program must be ran as root")
+
+		arguments = sys.argv[1:]
+
+		# Sets up the parameters (backup pool, and adding datasets to the list)
+		if len(arguments) > 1:
+			for i in range(len(arguments)):
+				if i == 0:
+					self.backup_pool = arguments[i]
+				else:
+					self.datasets.append(arguments[i])
+
+			self.print_datasets()
+		else:
+			self.die("You must pass at least two parameters: zfs_backup <backup pool> <datasets>*")
+
+	# Displays a message and quits with an error code of 1
+	def die(self, message):
+		print(message)
+		quit(1)
+
+	# Prints datasets
+	def print_datasets(self):
+		print("Datasets in List:")
+
+		for i in self.datasets:
+			print("- " + i)
+
+	# Sets the source pool
+	def set_src_pool(self, pool):
+		self.source_pool = pool
+
+	# Gets the source pool
+	def get_src_pool(self):
+		return self.source_pool
+
+	# Gets the backup pool
+	def get_bck_pool(self):
+		return self.backup_pool
+
+	# Gets the source pool based on the datasets passed
+	def parse_src_pool(self, dataset):
+		values = dataset.split("/")
+		return values[0]
+
+	# Runs a command and gets back the output
+	def run(self, cmd):
+		results = check_output(cmd, shell=True, universal_newlines=True).strip().split("\n")
+		return results
+
+	def get_snapshots(self, dataset):
+		print("Getting snapshots for " + dataset + " ...")
+
+		cmd = 'zfs list -H -t snapshot -o name | grep ' + dataset
+		results = self.run(cmd)
+
+		return results
+
+	# Gets the snapshots for target dataset at the backup pool
+	def get_backup_snapshots(self, dataset):
+		print("Getting snapshots at \"" +  self.get_bck_pool() + "\" pool for " + dataset + " ...")
+
+		backup_dataset = self.fback_name(dataset)
+
+		cmd = 'zfs list -H -t snapshot -o name | grep ' + backup_dataset
+
+		try:
+			results = self.run(cmd)
+		except CalledProcessError:
+			results = []
+
+		return results
+
+	# Format the dataset name so that it corresponds to the one in the backup pool
+	# Example: tank/gentoo/root -> backup/gentoo/root
+	def fback_name(self, dataset):
+		ds_vals = dataset.split("/")
+
+		target_name = ""
+
+		for val in ds_vals[1:]:
+			target_name += "/" + val 
+
+		target_name = self.backup_pool + target_name
+
+		return target_name
+
+	# Format the dataset name so that it corresponds to the one in the source pool
+	# Example: backup/gentoo/root -> tank/gentoo/root
+	def fsrc_name(self, dataset):
+		ds_vals = dataset.split("/")
+
+		target_name = ""
+
+		for val in ds_vals[1:]:
+			target_name += "/" + val 
+
+		target_name = self.source_pool + target_name
+
+		return target_name
+
+	# Returns true/false depending if a common dataset is found. This dataset is used
+	# to perform an incremental backup
+	def contains_common(self, lback_snap, src_list):
+		# lback_snap = Last Snapshot in the Backup Snapshot List
+		# src_list = Source Pool Snapshot List
+
+		# The last snapshot in our backup pool must be in the source pool
+		# so that we can use it as our common link for an incremental backup
+		src_snap = self.fsrc_name(lback_snap)
+
+		# Found
+		if src_snap in src_list:
+			return True
+		# Not Found
+		else:
+			return False
+
+	# Begin the backup
+	def start(self):
+		for dataset in self.datasets:
+			# Set source pool
+			self.source_pool = self.parse_src_pool(dataset)
+
+			print("Source Pool: " + backup.get_src_pool())
+			print("Backup Pool: " + backup.get_bck_pool())
+
+			# Retrieve the snapshots that are located in the source pool for this dataset
+			sp_results = self.get_snapshots(dataset)
+			sp_rlen = len(sp_results)
+
+			# Retrieve the snapshots that are located in the backup pool for this dataset
+			bp_results = self.get_backup_snapshots(dataset)
+			bp_rlen = len(bp_results)
+
+			print("Number of Source Snapshots for " + dataset + ": " + str(sp_rlen))
+			print("Number of Backup Snapshots for " + dataset + ": " + str(bp_rlen))
+
+			# If one or more snapshots exist in the source pool, but no backups exist in the target pool [ full backup ]
+			if sp_rlen >= 1 and bp_rlen == 0:
+				print("One or more snapshots exist in the source pool, but none exist in the backup pool. " +
+				"Sending a full backup of \"" + sp_results[sp_rlen - 1] + "\" ...")
+
+				cmd = 'zfs send -R ' + sp_results[sp_rlen - 1] + ' | zfs recv -dvF ' + self.backup_pool
+				cres = call(cmd, shell=True)
+
+				if cres:
+					print("Unable to successfully complete the full backup for \"" + dataset + "\"! :(")
+				else:
+					print("Successfully completed the full backup for \"" + dataset + "\"! :D")
+			# If one or more snapshots exist in the source pool, and at least one snapshot exists in the backup pool [ incremental ]
+			elif sp_rlen >= 1 and bp_rlen > 0:
+				print("One or more snapshots exist on both pools. Attempting to do an incremental backup ...")
+
+				bp_last = bp_results[bp_rlen - 1]
+				sp_first = sp_results[0]
+				sp_req_first = self.fsrc_name(bp_last)
+				sp_last = sp_results[sp_rlen - 1]
+
+				# The first backup of the backup pool serves as the common snapshot at the source pool (the last snapshot backed up)
+				print("First@Source: " + sp_first)
+				print("Last@Source: " + sp_last)
+				print("Last@Backup: " + bp_last)
+				print("Required First@Source (Common): " + sp_req_first)
+
+				# Are we already up to date?
+				if self.fback_name(sp_last) == bp_last:
+					print(dataset + " is already up to date!")
+				# the last backup in the backup pool needs to be available in the source pool
+				# and then we will use that as the starting point for the incremental backup
+				elif self.contains_common(bp_last, sp_results):
+					print("Common Link Found! Incrementing: " + bp_last + " -> " + self.fback_name(sp_last))
+
+					cmd = 'zfs send -I ' + sp_req_first + " " + sp_last + ' | zfs recv -dvF ' + self.backup_pool
+					cres = call(cmd, shell=True)
+
+					if cres:
+						print("Unable to successfully complete the incremental backup for \"" + dataset + "\"! :(")
+					else:
+						print("Successfully completed the incremental backup for \"" + dataset + "\"! :D")
+				else:
+					print("No common snapshots found. Unable to do an incremental backup! Skipping this dataset!")
+			else:
+				print("No snapshots found for " + dataset + "!")
+
+if __name__ == "__main__":
+	backup = Backup()
+	backup.welcome()
+	backup.start()

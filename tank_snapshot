@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Takes a controlled snapshot of each dataset in the 'tank' pool
+zfs_snapshot tank/gentoo/root
+zfs_snapshot tank/gentoo/home
+zfs_snapshot tank/gentoo/src
+zfs_snapshot tank/gentoo/portage

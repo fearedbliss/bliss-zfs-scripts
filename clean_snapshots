@@ -1,37 +1,21 @@
 #!/bin/bash
 
-# Simplified BSD License
+# Copyright 2013-2014 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
-# Copyright (C) 2013 Jonathan Vasquez <jvasquez1011@gmail.com>
-# All Rights Reserved
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met: 
-#
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer. 
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution. 
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+echo "This script is deactivated for this release, will be rewritten from scratch..."
+exit
 
 # Variables
 NAME="Bliss Snapshot Cleaner"
 AUTHOR="Jonathan Vasquez"
 EMAIL="jvasquez1011@gmail.com"
 CONTACT="${AUTHOR} <${EMAIL}>"
-VERSION="1.0.1"
-LICENSE="Simplified BSD License"
+VERSION="2.0.0"
+LICENSE="MPLv2"
 
 # Pool
 POOL=""
@@ -40,12 +24,12 @@ POOL=""
 ZFS="/sbin/zfs"
 
 # Passthrough (Just delete the snapshots without asking for confirmation)
-# 1st Parameter = Force (--force, -f, -pt)
+# 1st Parameter = Force (--force, -f)
 # 2nd Parameter = Name of Pool
 if [ ! -z "${1}" ]; then
 
 	case ${1} in
-	--force|-f|-pt)
+	--force|-f)
 		PT="1"
 
 		if [ ! -z "${2}" ]; then
@@ -107,7 +91,7 @@ deleteSnapshot()
 
 	ewarn "Deleting Snapshot: ${POOL}@${1}"
 
-	${ZFS} destroy -r ${POOL}@${1}
+	${ZFS} destroy ${POOL}@${1}
 }
 
 # Displays the number of Snapshots that are Queued for deletion
