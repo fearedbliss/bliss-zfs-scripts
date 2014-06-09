@@ -1,7 +1,9 @@
 #!/bin/bash
 
+SPATH="/usr/local/sbin"
+
 # Takes a controlled snapshot of each dataset in the 'tank' pool
-zfs_snapshot tank/gentoo/root
-zfs_snapshot tank/gentoo/home
-zfs_snapshot tank/gentoo/src
-zfs_snapshot tank/gentoo/portage
+${SPATH}/zfs_snapshot tank/gentoo/root
+${SPATH}/zfs_snapshot tank/gentoo/home
+${SPATH}/zfs_snapshot tank/gentoo/src
+${SPATH}/zfs_snapshot tank/gentoo/portage

@@ -1,7 +1,9 @@
 #!/bin/bash
 
+SPATH="/usr/local/sbin"
+
 # Backup the following datasets into the 'backup' pool
-zfs_backup backup \
+${SPATH}/zfs_backup backup \
 	tank/gentoo/root \
 	tank/gentoo/home \
 	tank/gentoo/src \

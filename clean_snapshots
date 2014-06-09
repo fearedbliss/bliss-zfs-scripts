@@ -1,293 +1,257 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-# Copyright 2013-2014 Jonathan Vasquez <jvasquez1011@gmail.com>
+# Copyright 2014 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-echo "This script is deactivated for this release, will be rewritten from scratch..."
-exit
+import sys
 
-# Variables
-NAME="Bliss Snapshot Cleaner"
-AUTHOR="Jonathan Vasquez"
-EMAIL="jvasquez1011@gmail.com"
-CONTACT="${AUTHOR} <${EMAIL}>"
-VERSION="2.0.0"
-LICENSE="MPLv2"
+from subprocess import call
+from subprocess import check_output
+from subprocess import CalledProcessError
 
-# Pool
-POOL=""
+class Cleaner:
+	def __init__(self):
+		# Defaults to 30 days ago
+		self.date_today = self.get_today_date()
+		self.date_slice = self.get_default_date()
 
-# Application Path
-ZFS="/sbin/zfs"
+		# List of snapshots in our given pool
+		self.snapshots = []
 
-# Passthrough (Just delete the snapshots without asking for confirmation)
-# 1st Parameter = Force (--force, -f)
-# 2nd Parameter = Name of Pool
-if [ ! -z "${1}" ]; then
+		# List of snapshots that will be deleted
+		self.queue = []
 
-	case ${1} in
-	--force|-f)
-		PT="1"
+		# Don't ask for confirmation when deleting snapshots?
+		self.force = 0
 
-		if [ ! -z "${2}" ]; then
-			POOL="${2}"
-		else
-			exit
-		fi
-		;;
-	*)
-		exit
-		;;
-	esac
-fi
+	# Checks parameters and running user
+	def welcome(self):
+		user = check_output(["whoami"], universal_newlines=True).strip()
 
-# Get the date in parts
-MONTH="$(date +%m)"
-DAY="$(date +%d)"
-YEAR="$(date +%y)"
+		if user != "root":
+			self.die("This program must be ran as root")
 
-TOTAL="${MONTH}_${DAY}_${YEAR}"
+		arguments = sys.argv[1:]
 
-# This will be the date used to removed any snapshots that are equal to
-# that day or older
-SLICE="$((MONTH - 1))_${DAY}_${YEAR}"
+		# clean_snapshots -f -p <pool> -d <date>
+		# clean_snapshots -f -p tank -d 06_09_14
+		if len(arguments) >= 1:
+			for i in range(len(arguments)):
+				# Sets the force flag
+				if arguments[i] == "-f":
+					self.force = 1
 
-# Will be used for statistical purposes later
-START_SNAPS="" # Will be set later
-END_SNAPS=""   # Will be set later
-SNAPS_LEFT=""  # will be set later
+				# Sets the pool name
+				elif arguments[i] == "-p":
+					try:
+						self.pool = arguments[i+1]
+					except IndexError:
+						self.die("No pool name was passed to -p")
 
-# Message that will be displayed at the top of the screen
-header()
-{
-        echo -e "-----------------------------------"
-        echo -e "\e[38;5;228m| ${NAME} - v${VERSION}\e[0;m"
-        echo -e "\e[38;5;229m| Author: ${CONTACT}\e[0;m"
-        echo -e "\e[38;5;230m| Distributed under the ${LICENSE}\e[0;m"
-        echo -e "-----------------------------------"
-}
+				# Sets the slice date
+				elif arguments[i] == "-d":
+					try:
+						self.date_slice = arguments[i+1]
+					except IndexError:
+						self.die("No date was passed to -d")
 
-# Gets all the snapshots that zfs currently has stored
-buildArray()
-{
-	DATA=($(${ZFS} list -t snapshot | grep ${POOL}@ | cut -d "@" -f 2 | cut -d " " -f 1))
-}
+				# Displays the help/usage message
+				elif arguments[i] == "-h":
+					self.print_usage()
 
-# Prints snapshot statistical data
-snapsStats()
-{
-	einfo "Starting Snapshots: ${1}"
-	einfo "Remaining Snapshots: ${2}"
-	einfo "Snapshots Deleted: ${3}"
-}
+			# Updates the time slices immediately, this also serves
+			# as a check to see if the user wrote in the date in the
+			# correct format: month_date_year
+			self.update_date_slices()
+		else:
+			self.print_usage()
+			self.die("You must pass the pool you want to clean. See the above examples.")
 
-# Deletes the snapshot and all of its children snapshots
-deleteSnapshot()
-{
-	# 1st parameter = snapshot data
+	# Prints usage information
+	def print_usage(self):
+		print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
+		print("# clean_snapshots -p <pool>\n")
+		print("Cleans target pool asking for confirmation with a slice date of <date>:")
+		print("# clean_snapshots -p <pool> -d <date>\n")
+		print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
+		print("# clean_snapshots -f -p <pool>\n")
+		print("Cleans target pool not asking for confirmation with a slice date of <date>:")
+		print("# clean_snapshots -f -p <pool> -d <date>\n")
 
-	ewarn "Deleting Snapshot: ${POOL}@${1}"
+	# Displays a message and quits with an error code of 1
+	def die(self, message):
+		print(message)
+		quit(1)
 
-	${ZFS} destroy ${POOL}@${1}
-}
+	# Gets the year from date_slice
+	def get_slice_year(self):
+		return int(self.date_slice.split("_")[2])
 
-# Displays the number of Snapshots that are Queued for deletion
-queueAmount()
-{
-	einfo "Number of Snapshots in Queue: ${#SNAPS_TO_DELETE[@]}";
-}
+	# Gets the month from date_slice
+	def get_slice_month(self):
+		return int(self.date_slice.split("_")[0])
 
-# Prints the Queue
-queuePrint()
-{
-	local x="${#SNAPS_TO_DELETE[@]}"
+	# Gets the day from date_slice
+	def get_slice_day(self):
+		return int(self.date_slice.split("_")[1])
 
-	for i in $(seq 0 $((${x} - 1))); do
-		einfo "Snapshot ${i}: ${SNAPS_TO_DELETE[${i}]}"
-	done
-}
+	# Adds a snapshot to our removal queue
+	def add_to_queue(self, a_snap):
+		#print("Adding " + a_snap + " to the removal queue ...")
+		self.queue.append(a_snap)
 
-# Adds a date to the Queue
-queueAdd()
-{
-	local x="${#SNAPS_TO_DELETE[@]}"
+	# Retrieves the snapshot removal queue
+	def get_queue(self):
+		return self.queue
 
-	SNAPS_TO_DELETE[${x}]="${1}"
-}
+	# Prints the snapshot removal queue
+	def print_queue(self):
+		for snap in self.queue:
+			print("Pending Removal: " + snap)
 
-# Deletes all the snapshots in the Queue
-queueWipe()
-{
-	local x="${#SNAPS_TO_DELETE[@]}"
+		print("")
 
-	for i in $(seq 0 $((${x} - 1))); do
-		deleteSnapshot ${SNAPS_TO_DELETE[${i}]}
-	done
+	# Returns the queue size
+	def get_queue_size(self):
+		return len(self.queue)
+
+	# Runs a command and gets back the output
+	def run(self, cmd):
+		results = check_output(cmd, shell=True, universal_newlines=True).strip()
+		return results
+
+	def get_today_date(self):
+		cmd = 'date +%m_%d_%y'
+		return self.run(cmd)
+
+	# Returns the default date (30 days before today)
+	def get_default_date(self):
+		date_parts = self.date_today.split("_")
+
+		new_month = int(date_parts[0]) - 1
+
+		if new_month < 10:
+			def_date = "0" + str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
+		else:
+			def_date = str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
+
+		return def_date
+
+	# Retrieves all the snapshots for the given pool
+	def get_pool_snapshots(self):
+		cmd = 'zfs list -t snapshot -o name -H | grep ' + self.pool
 	
-}
+		try:
+			results = self.run(cmd)
 
-# Compares the dates and if it finds an old snapshot, it adds it to the Queue
-compareDate()
-{
-	# 1st parameter = slice
-	# 2nd parameter = snapshot date
+			if results:
+				for snap in results.split("\n"):
+					self.snapshots.append(snap)
+		except CalledProcessError:
+			pass
 
-	local OLD_MONTH="$(echo ${2} | cut -d "_" -f 1)"
-	local OLD_DAY="$(echo ${2} | cut -d "_" -f 2)"
-	local OLD_YEAR="$(echo ${2} | cut -d "_" -f 3)"
+	# Prints out the snapshots in the given pool
+	def print_pool_snapshots(self):
+		if self.snapshots:
+			for snap in self.snapshots:
+				print("Snapshot: " + snap)
+		else:
+			print("No snapshots available!")
 
-	echeck "Checking Snapshot: ${2}"
+	# Adds a snapshot to our removal list if it passes the slice date
+	def slicer(self, a_snap):
+		# Left side = dataset, Right Side = date [0, 1]
+		at_split = a_snap.split("@")
 
-	if [ "${OLD_YEAR}" -le $((YEAR-1)) ]; then
-		queueAdd ${2}
-	elif [ "${OLD_MONTH}" -le $((MONTH-1)) ]; then
-		if [ "${OLD_DAY}" -lt ${DAY} ]; then
-			queueAdd ${2}
-		else
-			# The snapshot is from a previous month, but the day
-			# is not less than today's date. So we will check to 
-                        # see if the month is at least two months older than
-                        # our current month.
-			if [ "${OLD_MONTH}" -le $((MONTH-2)) ]; then
-				queueAdd ${2}
-			fi
-		fi
-	fi
-}
+		# Splits the right side into month/date/year
+		date_split = at_split[1].split("_")
 
-# Utility Functions
+		month = int(date_split[0])
+		day = int(date_split[1])
+		year = int(date_split[2])
 
-# Used for displaying information
-einfo()
-{
-        eline && echo -e "\e[1;32m>>>\e[0;m ${@}"
-}
+		if year < self.date_slice_year:
+			#print("This snapshot is older by at least a year!")
+			self.add_to_queue(a_snap)
+		elif month < self.date_slice_month:
+			#print("This snapshot is older by at least a month!")
+			self.add_to_queue(a_snap)
+		elif month == self.date_slice_month and day <= self.date_slice_day:
+			#print("This snapshot is older by a few days of the slice date!")
+			self.add_to_queue(a_snap)
+		#else:
+		#	print("Snapshot " + a_snap + " is newer than slice date " + self.date_slice + "!")
 
-# Used for input (questions)
-eqst()
-{
-        eline && echo -en "\e[1;37m>>>\e[0;m ${@}"
-}
+	# Removes the target snapshot
+	def destroy(self, a_snap):
+		cmd = 'zfs destroy ' + a_snap
+		self.run(cmd)
 
-# Used for warnings
-ewarn()
-{
-        eline && echo -e "\e[1;33m>>>\e[0;m ${@}"
-}
+	# Updates the date slices
+	def update_date_slices(self):
+		try:
+			self.date_slice_year = self.get_slice_year()
+			self.date_slice_month = self.get_slice_month()
+			self.date_slice_day = self.get_slice_day()
+		except IndexError:
+			self.die("Date must be in <month>_<date>_<year> format! Example: " + self.date_today)
 
-# Used for when checking snapshots
-echeck()
-{
-        eline && echo -e "\e[1;34m>>>\e[0;m ${@}"
-}
+	# Prints the date slices individually
+	def print_date_slices(self):
+		print("Slice Month: " + str(self.date_slice_month))
+		print("Slice Day: " + str(self.date_slice_day))
+		print("Slice Year: " + str(self.date_slice_year))
 
-# Used for errors
-die()
-{
-        eline && echo -e "\e[1;31m>>>\e[0;m ${@}" && eline && exit
-}
+	# Main
+	def start(self):
+		print("Today's Date: " + self.date_today)
+		print("Slice Date: " + self.date_slice)
+		print("Pool to Clean: " + self.pool)
+		print("")
 
-# Prints empty line
-eline()
-{
-	echo ""
-}
+		# Retrieves the snapshots in our given pool
+		self.get_pool_snapshots()
 
-#######################################################################
-# The main entry point starts here
-#######################################################################
+		# Check each snapshot and if it is older than the slice date,
+		# add it to our removal queue.
+		for snap in self.snapshots:
+			self.slicer(snap)
 
-clear
-header
-einfo "Today's Date: ${TOTAL}"
+		# Print the snapshots that will be removed
+		if self.queue:
+			self.print_queue()
 
-if [ -z ${POOL} ]; then
-	eqst "Enter the pool's name: " && read POOL
+		print("Amount of Snapshots to Remove: " + str(self.get_queue_size()))
+		print("")
 
-	if [ -z ${POOL} ]; then
-		die "No pool specified. Exiting."
-	fi
-fi
+		if self.queue:
+			if not self.force:
+				choice = input("Do you want to remove the above snapshots? [y/N]: ")
+				print("")
 
-# Get the snapshots and build an array
-buildArray
+				# Remove the snapshots that are in the slicer
+				if choice == 'y' or choice == 'Y':
+					for snap in self.queue:
+						self.destroy(snap)
 
-# How many snapshots do we currently have?
-START_SNAPS="${#DATA[@]}"
+				elif choice == 'n' or choice == 'N' or not choice:
+					print("Not removing any snapshots. Exiting.")
+					quit()
+				else:
+					self.die("Invalid Option. Exiting.")
 
-einfo "Current number of Snapshots: ${START_SNAPS}"
-ewarn "All Snapshots Older than ${SLICE} will be deleted!"
+			# If the force flag was enabled (maybe script mode), then just remove
+			# the snapshots without asking for confirmation.
+			else:
+				for snap in self.queue:
+					self.destroy(snap)
+		else:
+			print("The pool is already clean. Exiting.")
 
-# How many snapshots are in the Queue ready to be deleted?
-queueAmount
-
-if [ "${PT}" == 1 ]; then
-	# Runs through all the snapshots and adds any old ones to the Queue
-	for i in $(seq 0 $((${#DATA[@]} - 1))); do
-		compareDate ${SLICE} ${DATA[${i}]}
-	done
-
-	if [ "${#SNAPS_TO_DELETE[@]}" -gt 0 ]; then
-		einfo "These are the snapshots that will be deleted: "
-
-		queuePrint
-		queueAmount
-		queueWipe
-	fi
-
-	# Build a new array just for statistical purposes
-	buildArray
-
-	END_SNAPS="${#DATA[@]}"
-	SNAPS_LEFT=$((START_SNAPS - END_SNAPS))
-
-	# Statistics Data of Snapshots
-	snapsStats ${START_SNAPS} ${END_SNAPS} ${SNAPS_LEFT}
-else
-	# Ask to proceed
-	eqst "Proceed [y/N]: " && read CHOICE
-
-	case ${CHOICE} in
-	y|Y)
-		unset CHOICE
-
-		# Runs through all the snapshots and adds any old ones to the Queue
-		for i in $(seq 0 $((${#DATA[@]} - 1))); do
-			compareDate ${SLICE} ${DATA[${i}]}
-		done
-
-		if [ "${#SNAPS_TO_DELETE[@]}" -gt 0 ]; then
-			einfo "These are the snapshots that will be deleted: "
-
-			queuePrint
-			queueAmount
-
-			eqst "Are you sure you want to remove the above snapshots [y/N]: " && read CHOICE
-
-			case ${CHOICE} in
-			y|Y)
-				queueWipe
-				;;
-			n|N|*)
-				die "These snapshots Will not be deleted. Exiting."
-				;;
-			esac
-		fi
-
-		# Build a new array just for statistical purposes
-		buildArray
-
-		END_SNAPS="${#DATA[@]}"
-		SNAPS_LEFT=$((START_SNAPS - END_SNAPS))
-
-		# Statistics Data of Snapshots
-		snapsStats ${START_SNAPS} ${END_SNAPS} ${SNAPS_LEFT}
-		;;
-	n|N|*)
-		die "Exiting"
-		;;
-	esac
-fi
+if __name__ == "__main__":
+	cleaner = Cleaner()
+	cleaner.welcome()
+	cleaner.start()

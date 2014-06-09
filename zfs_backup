@@ -47,9 +47,28 @@ class Backup:
 		print(message)
 		quit(1)
 
+	# Checks to see that all the pools are imported
+	def check_imports(self):
+		for dataset in self.datasets:
+			# Set source pool
+			self.source_pool = self.parse_src_pool(dataset)
+			self.check_pool_import(self.source_pool)
+		
+		self.check_pool_import(self.backup_pool)
+
+	# Checks to see that 'pool' is imported
+	def check_pool_import(self, pool):
+		print("Checking to see if pool \"" + pool + "\" is imported ...")
+		cmd = 'zpool status | grep pool | grep -w ' + pool
+
+		cres = call(cmd, shell=True)
+
+		if cres:
+			self.die("Pool \"" + pool + "\" is not imported!")
+
 	# Prints datasets
 	def print_datasets(self):
-		print("Datasets in List:")
+		print("Retrieved Datasets:")
 
 		for i in self.datasets:
 			print("- " + i)
@@ -214,4 +233,5 @@ class Backup:
 if __name__ == "__main__":
 	backup = Backup()
 	backup.welcome()
+	backup.check_imports()
 	backup.start()
