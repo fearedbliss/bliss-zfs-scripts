@@ -1,0 +1,63 @@
+zfs_snapshot takes a snapshot only of the datasets that it is given.
+This allows you to have maximum control of what specific datasets
+you want to backup.
+
+An example of backing up a few datasets in a pool:
+
+# zfs_snapshot tank/gentoo/root tank/gentoo/home ...
+
+You can automate this by using a wrapper script that is called via cronjob.
+You can use the 'tank_snapshot' wrapper script as a base for your datasets backups.
+The 'tank' in 'tank_snapshot' is the name of my pool. I just named it this to make it
+simply to identify which pool will be snapshotted.
+
+----------
+
+clean_snapshots - This script automatically cleans any dataset that is older than 30 days,
+or older than the date passed to it (if given).
+
+Example:
+
+clean_snapshots -p tank
+
+Will find any snapshot older than 30 days (from today) for the tank pool, and then it will
+show you the snapshots that it will delete, and ask for confirmation.
+
+If you want to specify a date, you can use the '-d' flag.
+
+Example:
+
+clean_snapshots -p tank -d 06_09_14
+
+Any snapshot older than June 9, 2014 will be removed. This allows for an easy way to delete all the snapshots
+in one go. Let's say that today is June 9, 2014, and you want to delete your already existing 350 snapshots
+(that were created with zfs_snapshot beforehand), you could just set the date to something in the future
+(like next year):
+
+clean_snapshots -p tank -d 06_09_15
+
+Then since every snapshot is older than 2015, it will mark all of them for deletion.
+
+If you want to run this in a cronjob and don't want it to ask for confirmation, you can use the "-f" flag:
+
+Example:
+
+clean_snapshots -f -p tank (-d <date> if you want to)
+
+----------
+
+zfs_backup - this script automates the process of performing full and incremental backups
+between two pools. When doing an incremental backup, the script automatically finds a common
+ancensor between the source and backup pool, and uses that to perform the incremental backup.
+
+You can pass the datasets you wish to backup to a target pool. The source datasets don't
+necessarily need to be in the same pool. For example, if you have a 'cockatiel' pool and an 'parakeet'
+pool and you want to backup to the 'animal_backup' pool, you could easily do:
+
+zfs_backup animal_backup cockatiel/home parakeet/cage/food
+
+I haven't tested this though and was debating whether or not to just remove this ability, and
+just let the user run zfs_backup twice, each with the datasets that they wish to backup but 
+only in the same dataset.
+
+----------

@@ -1,12 +1,3 @@
-If you run the clean_snapshot script without parameters, it will run
-interactively.
-
-You can run the script with no interaction by passing the --force, -f, or 
--pt (passthrough) flag and the pool's name.
-
-Example: # clean_snapshots -f rpool
-----------------------
-
 This is an example crontab. I will use mine as an example:
 
 # Run a scrub every week
@@ -24,4 +15,4 @@ This is an example crontab. I will use mine as an example:
 # Clean snapshots once a month (I don't use this since in the cronjob,
 # since I do manual backups and need a common snapshot to do incremental backups)
 # I only clean my snapshots after I've updated my backup pools.
-# 05 01 01 * * /usr/local/sbin/clean_snapshots -f rpool
+# 05 01 01 * * /usr/local/sbin/clean_snapshots -f -p tank

@@ -1,9 +1,16 @@
 #!/bin/bash
 
+# Copyright 2014 Jonathan Vasquez <jvasquez1011@gmail.com>
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
 SPATH="/usr/local/sbin"
 
 # Takes a controlled snapshot of each dataset in the 'tank' pool
-${SPATH}/zfs_snapshot tank/gentoo/root
-${SPATH}/zfs_snapshot tank/gentoo/home
-${SPATH}/zfs_snapshot tank/gentoo/src
-${SPATH}/zfs_snapshot tank/gentoo/portage
+${SPATH}/zfs_snapshot \
+	tank/gentoo/root \
+	tank/gentoo/home \
+	tank/gentoo/src \
+	tank/gentoo/portage
