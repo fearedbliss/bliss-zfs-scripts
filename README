@@ -16,3 +16,7 @@ This is a collection of scripts that I use to manage my zfs setup at home.
 *) tank_backup         - Example file of something you might put in your cronjob (wrapper around zfs_backup)
 
 These scripts can be used as cronjobs.
+
+Requirements:
+Python 3+
+bash
