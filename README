@@ -1,8 +1,8 @@
-Bliss ZFS Scripts
+Bliss ZFS Scripts 1.0.1
 Jonathan Vasquez <jvasquez1011@gmail.com>
-Gentoo Linux
+Designed for Gentoo Linux
 
-Distributed under the MPL 2.0 which can be found in the LICENSE file.
+Distributed under the GPLv2 which can be found in the LICENSE file.
 
 This is a collection of scripts that I use to manage my zfs setup at home.
 

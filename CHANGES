@@ -1,0 +1,4 @@
+1.0.1 Changes
+---------------
+- Relicensed to the GPLv2
+- Cleaned up messaging when running the zfs_backup script.

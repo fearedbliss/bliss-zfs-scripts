@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 
-# Copyright 2014 Jonathan Vasquez <jvasquez1011@gmail.com>
+# Copyright 2013-2015 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2
+# as published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, see <http://www.gnu.org/licenses/>.
 
 import sys
 
@@ -13,245 +21,245 @@ from subprocess import check_output
 from subprocess import CalledProcessError
 
 class Cleaner:
-	def __init__(self):
-		# Defaults to 30 days ago
-		self.date_today = self.get_today_date()
-		self.date_slice = self.get_default_date()
+    def __init__(self):
+        # Defaults to 30 days ago
+        self.date_today = self.get_today_date()
+        self.date_slice = self.get_default_date()
 
-		# List of snapshots in our given pool
-		self.snapshots = []
+        # List of snapshots in our given pool
+        self.snapshots = []
 
-		# List of snapshots that will be deleted
-		self.queue = []
+        # List of snapshots that will be deleted
+        self.queue = []
 
-		# Don't ask for confirmation when deleting snapshots?
-		self.force = 0
+        # Don't ask for confirmation when deleting snapshots?
+        self.force = 0
 
-	# Checks parameters and running user
-	def welcome(self):
-		user = check_output(["whoami"], universal_newlines=True).strip()
+    # Checks parameters and running user
+    def welcome(self):
+        user = check_output(["whoami"], universal_newlines=True).strip()
 
-		if user != "root":
-			self.die("This program must be ran as root")
+        if user != "root":
+            self.die("This program must be ran as root")
 
-		arguments = sys.argv[1:]
+        arguments = sys.argv[1:]
 
-		# clean_snapshots -f -p <pool> -d <date>
-		# clean_snapshots -f -p tank -d 06_09_14
-		if len(arguments) >= 1:
-			for i in range(len(arguments)):
-				# Sets the force flag
-				if arguments[i] == "-f":
-					self.force = 1
+        # clean_snapshots -f -p <pool> -d <date>
+        # clean_snapshots -f -p tank -d 06_09_14
+        if len(arguments) >= 1:
+            for i in range(len(arguments)):
+                # Sets the force flag
+                if arguments[i] == "-f":
+                    self.force = 1
 
-				# Sets the pool name
-				elif arguments[i] == "-p":
-					try:
-						self.pool = arguments[i+1]
-					except IndexError:
-						self.die("No pool name was passed to -p")
+                # Sets the pool name
+                elif arguments[i] == "-p":
+                    try:
+                        self.pool = arguments[i+1]
+                    except IndexError:
+                        self.die("No pool name was passed to -p")
 
-				# Sets the slice date
-				elif arguments[i] == "-d":
-					try:
-						self.date_slice = arguments[i+1]
-					except IndexError:
-						self.die("No date was passed to -d")
+                # Sets the slice date
+                elif arguments[i] == "-d":
+                    try:
+                        self.date_slice = arguments[i+1]
+                    except IndexError:
+                        self.die("No date was passed to -d")
 
-				# Displays the help/usage message
-				elif arguments[i] == "-h":
-					self.print_usage()
+                # Displays the help/usage message
+                elif arguments[i] == "-h":
+                    self.print_usage()
 
-			# Updates the time slices immediately, this also serves
-			# as a check to see if the user wrote in the date in the
-			# correct format: month_date_year
-			self.update_date_slices()
-		else:
-			self.print_usage()
-			self.die("You must pass the pool you want to clean. See the above examples.")
+            # Updates the time slices immediately, this also serves
+            # as a check to see if the user wrote in the date in the
+            # correct format: month_date_year
+            self.update_date_slices()
+        else:
+            self.print_usage()
+            self.die("You must pass the pool you want to clean. See the above examples.")
 
-	# Prints usage information
-	def print_usage(self):
-		print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
-		print("# clean_snapshots -p <pool>\n")
-		print("Cleans target pool asking for confirmation with a slice date of <date>:")
-		print("# clean_snapshots -p <pool> -d <date>\n")
-		print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
-		print("# clean_snapshots -f -p <pool>\n")
-		print("Cleans target pool not asking for confirmation with a slice date of <date>:")
-		print("# clean_snapshots -f -p <pool> -d <date>\n")
+    # Prints usage information
+    def print_usage(self):
+        print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
+        print("# clean_snapshots -p <pool>\n")
+        print("Cleans target pool asking for confirmation with a slice date of <date>:")
+        print("# clean_snapshots -p <pool> -d <date>\n")
+        print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
+        print("# clean_snapshots -f -p <pool>\n")
+        print("Cleans target pool not asking for confirmation with a slice date of <date>:")
+        print("# clean_snapshots -f -p <pool> -d <date>\n")
 
-	# Displays a message and quits with an error code of 1
-	def die(self, message):
-		print(message)
-		quit(1)
+    # Displays a message and quits with an error code of 1
+    def die(self, message):
+        print(message)
+        quit(1)
 
-	# Gets the year from date_slice
-	def get_slice_year(self):
-		return int(self.date_slice.split("_")[2])
+    # Gets the year from date_slice
+    def get_slice_year(self):
+        return int(self.date_slice.split("_")[2])
 
-	# Gets the month from date_slice
-	def get_slice_month(self):
-		return int(self.date_slice.split("_")[0])
+    # Gets the month from date_slice
+    def get_slice_month(self):
+        return int(self.date_slice.split("_")[0])
 
-	# Gets the day from date_slice
-	def get_slice_day(self):
-		return int(self.date_slice.split("_")[1])
+    # Gets the day from date_slice
+    def get_slice_day(self):
+        return int(self.date_slice.split("_")[1])
 
-	# Adds a snapshot to our removal queue
-	def add_to_queue(self, a_snap):
-		#print("Adding " + a_snap + " to the removal queue ...")
-		self.queue.append(a_snap)
+    # Adds a snapshot to our removal queue
+    def add_to_queue(self, a_snap):
+        #print("Adding " + a_snap + " to the removal queue ...")
+        self.queue.append(a_snap)
 
-	# Retrieves the snapshot removal queue
-	def get_queue(self):
-		return self.queue
+    # Retrieves the snapshot removal queue
+    def get_queue(self):
+        return self.queue
 
-	# Prints the snapshot removal queue
-	def print_queue(self):
-		for snap in self.queue:
-			print("Pending Removal: " + snap)
+    # Prints the snapshot removal queue
+    def print_queue(self):
+        for snap in self.queue:
+            print("Pending Removal: " + snap)
 
-		print("")
+        print("")
 
-	# Returns the queue size
-	def get_queue_size(self):
-		return len(self.queue)
+    # Returns the queue size
+    def get_queue_size(self):
+        return len(self.queue)
 
-	# Runs a command and gets back the output
-	def run(self, cmd):
-		results = check_output(cmd, shell=True, universal_newlines=True).strip()
-		return results
+    # Runs a command and gets back the output
+    def run(self, cmd):
+        results = check_output(cmd, shell=True, universal_newlines=True).strip()
+        return results
 
-	def get_today_date(self):
-		cmd = 'date +%m_%d_%y'
-		return self.run(cmd)
+    def get_today_date(self):
+        cmd = 'date +%m_%d_%y'
+        return self.run(cmd)
 
-	# Returns the default date (30 days before today)
-	def get_default_date(self):
-		date_parts = self.date_today.split("_")
+    # Returns the default date (30 days before today)
+    def get_default_date(self):
+        date_parts = self.date_today.split("_")
 
-		new_month = int(date_parts[0]) - 1
+        new_month = int(date_parts[0]) - 1
 
-		if new_month < 10:
-			def_date = "0" + str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
-		else:
-			def_date = str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
+        if new_month < 10:
+            def_date = "0" + str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
+        else:
+            def_date = str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
 
-		return def_date
+        return def_date
 
-	# Retrieves all the snapshots for the given pool
-	def get_pool_snapshots(self):
-		cmd = 'zfs list -t snapshot -o name -H | grep ' + self.pool
-	
-		try:
-			results = self.run(cmd)
+    # Retrieves all the snapshots for the given pool
+    def get_pool_snapshots(self):
+        cmd = 'zfs list -t snapshot -o name -H | grep ' + self.pool
 
-			if results:
-				for snap in results.split("\n"):
-					self.snapshots.append(snap)
-		except CalledProcessError:
-			pass
+        try:
+            results = self.run(cmd)
 
-	# Prints out the snapshots in the given pool
-	def print_pool_snapshots(self):
-		if self.snapshots:
-			for snap in self.snapshots:
-				print("Snapshot: " + snap)
-		else:
-			print("No snapshots available!")
+            if results:
+                for snap in results.split("\n"):
+                    self.snapshots.append(snap)
+        except CalledProcessError:
+            pass
 
-	# Adds a snapshot to our removal list if it passes the slice date
-	def slicer(self, a_snap):
-		# Left side = dataset, Right Side = date [0, 1]
-		at_split = a_snap.split("@")
+    # Prints out the snapshots in the given pool
+    def print_pool_snapshots(self):
+        if self.snapshots:
+            for snap in self.snapshots:
+                print("Snapshot: " + snap)
+        else:
+            print("No snapshots available!")
 
-		# Splits the right side into month/date/year
-		date_split = at_split[1].split("_")
+    # Adds a snapshot to our removal list if it passes the slice date
+    def slicer(self, a_snap):
+        # Left side = dataset, Right Side = date [0, 1]
+        at_split = a_snap.split("@")
 
-		month = int(date_split[0])
-		day = int(date_split[1])
-		year = int(date_split[2])
+        # Splits the right side into month/date/year
+        date_split = at_split[1].split("_")
 
-		if year < self.date_slice_year:
-			#print("This snapshot is older by at least a year!")
-			self.add_to_queue(a_snap)
-		elif month < self.date_slice_month:
-			#print("This snapshot is older by at least a month!")
-			self.add_to_queue(a_snap)
-		elif month == self.date_slice_month and day <= self.date_slice_day:
-			#print("This snapshot is older by a few days of the slice date!")
-			self.add_to_queue(a_snap)
-		#else:
-		#	print("Snapshot " + a_snap + " is newer than slice date " + self.date_slice + "!")
+        month = int(date_split[0])
+        day = int(date_split[1])
+        year = int(date_split[2])
 
-	# Removes the target snapshot
-	def destroy(self, a_snap):
-		cmd = 'zfs destroy ' + a_snap
-		self.run(cmd)
+        if year < self.date_slice_year:
+            #print("This snapshot is older by at least a year!")
+            self.add_to_queue(a_snap)
+        elif month < self.date_slice_month:
+            #print("This snapshot is older by at least a month!")
+            self.add_to_queue(a_snap)
+        elif month == self.date_slice_month and day <= self.date_slice_day:
+            #print("This snapshot is older by a few days of the slice date!")
+            self.add_to_queue(a_snap)
+        #else:
+        #   print("Snapshot " + a_snap + " is newer than slice date " + self.date_slice + "!")
 
-	# Updates the date slices
-	def update_date_slices(self):
-		try:
-			self.date_slice_year = self.get_slice_year()
-			self.date_slice_month = self.get_slice_month()
-			self.date_slice_day = self.get_slice_day()
-		except IndexError:
-			self.die("Date must be in <month>_<date>_<year> format! Example: " + self.date_today)
+    # Removes the target snapshot
+    def destroy(self, a_snap):
+        cmd = 'zfs destroy ' + a_snap
+        self.run(cmd)
 
-	# Prints the date slices individually
-	def print_date_slices(self):
-		print("Slice Month: " + str(self.date_slice_month))
-		print("Slice Day: " + str(self.date_slice_day))
-		print("Slice Year: " + str(self.date_slice_year))
+    # Updates the date slices
+    def update_date_slices(self):
+        try:
+            self.date_slice_year = self.get_slice_year()
+            self.date_slice_month = self.get_slice_month()
+            self.date_slice_day = self.get_slice_day()
+        except IndexError:
+            self.die("Date must be in <month>_<date>_<year> format! Example: " + self.date_today)
 
-	# Main
-	def start(self):
-		print("Today's Date: " + self.date_today)
-		print("Slice Date: " + self.date_slice)
-		print("Pool to Clean: " + self.pool)
-		print("")
+    # Prints the date slices individually
+    def print_date_slices(self):
+        print("Slice Month: " + str(self.date_slice_month))
+        print("Slice Day: " + str(self.date_slice_day))
+        print("Slice Year: " + str(self.date_slice_year))
 
-		# Retrieves the snapshots in our given pool
-		self.get_pool_snapshots()
+    # Main
+    def start(self):
+        print("Today's Date: " + self.date_today)
+        print("Slice Date: " + self.date_slice)
+        print("Pool to Clean: " + self.pool)
+        print("")
 
-		# Check each snapshot and if it is older than the slice date,
-		# add it to our removal queue.
-		for snap in self.snapshots:
-			self.slicer(snap)
+        # Retrieves the snapshots in our given pool
+        self.get_pool_snapshots()
 
-		# Print the snapshots that will be removed
-		if self.queue:
-			self.print_queue()
+        # Check each snapshot and if it is older than the slice date,
+        # add it to our removal queue.
+        for snap in self.snapshots:
+            self.slicer(snap)
 
-		print("Amount of Snapshots to Remove: " + str(self.get_queue_size()))
-		print("")
+        # Print the snapshots that will be removed
+        if self.queue:
+            self.print_queue()
 
-		if self.queue:
-			if not self.force:
-				choice = input("Do you want to remove the above snapshots? [y/N]: ")
-				print("")
+        print("Amount of Snapshots to Remove: " + str(self.get_queue_size()))
+        print("")
 
-				# Remove the snapshots that are in the slicer
-				if choice == 'y' or choice == 'Y':
-					for snap in self.queue:
-						self.destroy(snap)
+        if self.queue:
+            if not self.force:
+                choice = input("Do you want to remove the above snapshots? [y/N]: ")
+                print("")
 
-				elif choice == 'n' or choice == 'N' or not choice:
-					print("Not removing any snapshots. Exiting.")
-					quit()
-				else:
-					self.die("Invalid Option. Exiting.")
+                # Remove the snapshots that are in the slicer
+                if choice == 'y' or choice == 'Y':
+                    for snap in self.queue:
+                        self.destroy(snap)
 
-			# If the force flag was enabled (maybe script mode), then just remove
-			# the snapshots without asking for confirmation.
-			else:
-				for snap in self.queue:
-					self.destroy(snap)
-		else:
-			print("The pool is already clean. Exiting.")
+                elif choice == 'n' or choice == 'N' or not choice:
+                    print("Not removing any snapshots. Exiting.")
+                    quit()
+                else:
+                    self.die("Invalid Option. Exiting.")
+
+            # If the force flag was enabled (maybe script mode), then just remove
+            # the snapshots without asking for confirmation.
+            else:
+                for snap in self.queue:
+                    self.destroy(snap)
+        else:
+            print("The pool is already clean. Exiting.")
 
 if __name__ == "__main__":
-	cleaner = Cleaner()
-	cleaner.welcome()
-	cleaner.start()
+    cleaner = Cleaner()
+    cleaner.welcome()
+    cleaner.start()
