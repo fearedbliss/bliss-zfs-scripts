@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright 2013-2015 Jonathan Vasquez <jvasquez1011@gmail.com>
+# Copyright 2015 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,7 +8,5 @@
 
 SPATH="/usr/local/sbin"
 
-# Backup the following datasets into the 'backup' pool
-${SPATH}/zfs_backup backup \
-    tank/gentoo/root \
-    tank/gentoo/home
+# Takes a controlled snapshot of each dataset in the 'tank' pool
+${SPATH}/btrfs_snapshot /mnt/toplevel/tank

@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Copyright 2015 Jonathan Vasquez <jvasquez1011@gmail.com>
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+# Description: Takes a btrfs snapshot starting from a top-level dataset and organizes the snapshots by date
+
+# params : btrfs_snapshot <path to root of btrfs volume dataset>
+# example: btrfs_snapshot /mnt/toplevel/tank
+
+if [[ -z $1 ]]; then
+    echo "Please pass in the location of the top-level dataset/subvolume."
+    exit 1
+fi
+
+BTRFS="/sbin/btrfs"
+BTRFS_OPTS="-r"
+
+# strip last / char if exists (otherwise would cause pool_name to be null if user passes a directory with a final /)
+STRIPPED="${1%/}"
+POOL_NAME="${STRIPPED##*/}"
+TOP_LEVEL="${1%/*}"
+
+SNAPSHOT_DATE=$(date +%m_%d_%y_%H%M)
+SNAPSHOTS_DIR_NAME="snapshots"
+
+POOL_TOP_LEVEL="${TOP_LEVEL}/${POOL_NAME}"
+
+if [[ ! -d ${POOL_TOP_LEVEL} ]]; then
+    echo "Unable to find: ${POOL_TOP_LEVEL}"
+    exit 1
+fi
+
+for target in $(ls ${POOL_TOP_LEVEL}); do
+    if [[ ${target} == "snapshots" ]]; then
+        break
+    fi
+
+    SOURCE_PATH="${POOL_TOP_LEVEL}/${target}"
+    TARGET_PATH="${POOL_TOP_LEVEL}/${SNAPSHOTS_DIR_NAME}/${SNAPSHOT_DATE}/${target}"
+    SNAPSHOT_DIR="$(dirname ${TARGET_PATH})"
+
+    if [[ ! -d ${SNAPSHOT_DIR} ]]; then
+        mkdir -p "${SNAPSHOT_DIR}"
+
+        if [[ ! -d ${SNAPSHOT_DIR} ]]; then
+            echo "Unable to create the snapshot directory: ${SNAPSHOT_DIR}"
+            exit 1
+        fi
+    fi
+
+    ${BTRFS} subvolume snapshot ${BTRFS_OPTS} ${SOURCE_PATH} ${TARGET_PATH}
+done

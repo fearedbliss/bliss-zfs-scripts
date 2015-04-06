@@ -1,12 +1,25 @@
-1.0.3 Changes
----------------
+2.0.0
+-------
+- Relicensed back to the Mozilla Public License 2.0
+- Completely restructured the application in order to fully support both the cleaning
+  of btrfs and zfs snapshots.
+- Merged the 'btrfs' functionality from the bliss-btrfs-scripts into this one
+  to have one code base.
+- Improved message output
+- Fixed a small bug where if you passed the "-h" flag, it wouldn't just show you the -h,
+  but still run a small amount of code.
+- The speed for which the script will retrieve the zfs snapshots on a system has been vastly increased
+  by taking advantage of the "-s" flag for "zfs list".
+
+1.0.3
+-------
 - Relicensed to Simplified BSD License
 
-1.0.2 Changes
----------------
+1.0.2
+-------
 - Relicensed back to MPL 2.0
 
-1.0.1 Changes
----------------
+1.0.1
+-------
 - Relicensed to the GPLv2
 - Cleaned up messaging when running the zfs_backup script.

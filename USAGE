@@ -18,7 +18,7 @@ or older than the date passed to it (if given).
 
 Example:
 
-clean_snapshots -p tank
+clean_snapshots -p tank -t zfs
 
 Will find any snapshot older than 30 days (from today) for the tank pool, and then it will
 show you the snapshots that it will delete, and ask for confirmation.
@@ -27,14 +27,18 @@ If you want to specify a date, you can use the '-d' flag.
 
 Example:
 
-clean_snapshots -p tank -d 06_09_14
+clean_snapshots -p tank -t zfs -d 06_09_14
 
 Any snapshot older than June 9, 2014 will be removed. This allows for an easy way to delete all the snapshots
 in one go. Let's say that today is June 9, 2014, and you want to delete your already existing 350 snapshots
 (that were created with zfs_snapshot beforehand), you could just set the date to something in the future
 (like next year):
 
-clean_snapshots -p tank -d 06_09_15
+zfs:
+clean_snapshots -p tank -t zfs -d 06_09_15
+
+btrfs:
+clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 06_09_15
 
 Then since every snapshot is older than 2015, it will mark all of them for deletion.
 
@@ -42,7 +46,7 @@ If you want to run this in a cronjob and don't want it to ask for confirmation, 
 
 Example:
 
-clean_snapshots -f -p tank (-d <date> if you want to)
+clean_snapshots -f -p tank -t zfs (-d <date> if you want to)
 
 ----------
 
@@ -57,7 +61,22 @@ pool and you want to backup to the 'animal_backup' pool, you could easily do:
 zfs_backup animal_backup cockatiel/home parakeet/cage/food
 
 I haven't tested this though and was debating whether or not to just remove this ability, and
-just let the user run zfs_backup twice, each with the datasets that they wish to backup but 
+just let the user run zfs_backup twice, each with the datasets that they wish to backup but
 only in the same dataset.
 
 ----------
+
+btrfs layout for snapshots and cleaning:
+
+The snapshot script will snapshot each directory it finds in the 'tank' folder
+that's inside /mnt/toplevel (the 'snapshots' directory will be excluded).
+
+Assume you mounted /dev/sda1 (your btrfs volume) at /mnt/toplevel and then you make a subvolume called 'tank'
+in that directory (so /mnt/toplevel/tank is your "top level subvolume"):
+
+tank <------ Considering this a top level subvolume (dataset) inside the btrfs volume for organization purposes.
+tank/root <--- Operating System /
+tank/home <--- /home
+tank/snapshots <--- Snapshots subvolume (organized by dates: i.e: tank/snapshots/03_28_15_1838/{tank, root, etc}
+
+Note: The 'snapshots' directory/subvolume will not be snapshotted again (It will be excluded when the algorithm finds it).
