@@ -9,6 +9,5 @@
 SPATH="/usr/local/sbin"
 
 # Backup the following datasets into the 'backup' pool
-${SPATH}/zfs_backup backup \
-    tank/gentoo/root \
-    tank/gentoo/home
+${SPATH}/zfs_backup -f -b backup -d tank/gentoo/root
+${SPATH}/zfs_backup -f -b backup -d tank/gentoo/home

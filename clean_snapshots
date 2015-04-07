@@ -13,103 +13,16 @@ from subprocess import call
 from subprocess import check_output
 from subprocess import CalledProcessError
 
-# Provides utility functions that can be used by any class
-class Tools(object):
-    @classmethod
-    # Runs a command and gets back the output
-    def run(cls, cmd):
-        return check_output(cmd, shell=True, universal_newlines=True).strip()
-
-    @classmethod
-    # Displays a message and quits with an error code of 1
-    def die(cls, message):
-        print(message)
-        quit(1)
-
-    @classmethod
-    # Prints usage information
-    def print_usage(cls):
-        print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
-        print("# clean_snapshots -p <pool> -t zfs \n")
-        print("Cleans target pool asking for confirmation with a slice date of <date>:")
-        print("# clean_snapshots -p <pool> -t zfs -d <date>\n")
-        print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
-        print("# clean_snapshots -f -p <pool> -t btrfs\n")
-        print("Cleans target pool not asking for confirmation with a slice date of <date>:")
-        print("# clean_snapshots -f -p <pool> -d <date> -t btrfs\n")
-
-# Provides date managing tools
-class DateManager(object):
-    @classmethod
-    def __init__(cls):
-        cls.date_today = cls.get_todays_date()
-        cls.date_slice = cls.get_default_date()
-        cls.date_slice_year = ""
-        cls.date_slice_month = ""
-        cls.date_slice_day = ""
-
-    @classmethod
-    # Updates the date slices
-    def update_date_slices(cls):
-        try:
-            cls.date_slice_year = cls.get_slice_year()
-            cls.date_slice_month = cls.get_slice_month()
-            cls.date_slice_day = cls.get_slice_day()
-        except IndexError:
-            Tools.die("Date must be in <month>_<date>_<year> format! Example: " + cls.date_today)
-
-    @classmethod
-    # Gets the year from date_slice
-    def get_slice_year(cls):
-        return int(cls.date_slice.split("_")[2])
-
-    @classmethod
-    # Gets the month from date_slice
-    def get_slice_month(cls):
-        return int(cls.date_slice.split("_")[0])
-
-    @classmethod
-    # Gets the day from date_slice
-    def get_slice_day(cls):
-        return int(cls.date_slice.split("_")[1])
-
-    @classmethod
-    def get_todays_date(cls):
-        cmd = 'date +%m_%d_%y'
-        return Tools.run(cmd)
-
-    @classmethod
-    # Prints the date slices individually
-    def print_date_slices(cls):
-        print("Slice Month: " + str(cls.date_slice_month))
-        print("Slice Day: " + str(cls.date_slice_day))
-        print("Slice Year: " + str(cls.date_slice_year))
-
-    @classmethod
-    # Returns the default date (30 days before today)
-    def get_default_date(cls):
-        date_parts = cls.date_today.split("_")
-
-        new_month = int(date_parts[0]) - 1
-
-        if new_month < 10:
-            def_date = "0" + str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
-        else:
-            def_date = str(new_month) + "_" + date_parts[1] + "_" + date_parts[2]
-
-        return def_date
-
-# The main class
+# Enables the user to efficiently clean the snapshots in their pool.
 class Cleaner(object):
     def __init__(self):
-        # Starts up the DateManager so that the static variables
-        # within the class are initialized.
+        # Starts up the DateManager so that the static variables within the class are initialized.
         DateManager()
 
         # Don't ask for confirmation when deleting snapshots?
         self.force = 0
 
-        # What type of filesystem snapshots will we managing? (zfs or btrfs)
+        # What type of filesystem snapshots will we be managing? (zfs or btrfs)
         self.fstype = ""
 
     # Checks parameters and running user
@@ -122,7 +35,7 @@ class Cleaner(object):
         arguments = sys.argv[1:]
 
         # clean_snapshots -f -p <pool> -d <date> -t <fstype>
-        # clean_snapshots -f -p tank -d 06_09_14 -t zfs
+        # clean_snapshots -f -p tank -d 2014-06-09 -t zfs
         if len(arguments) >= 1:
             for i in range(len(arguments)):
                 # Sets the force flag
@@ -219,6 +132,100 @@ class Cleaner(object):
         else:
             print("The pool is already clean. Exiting.")
 
+# Provides utility functions that can be used by any class
+class Tools(object):
+    @classmethod
+    # Runs a command and gets back the output
+    def run(cls, cmd):
+        return check_output(cmd, shell=True, universal_newlines=True).strip()
+
+    @classmethod
+    # Displays a message and quits with an error code of 1
+    def die(cls, message):
+        print(message)
+        quit(1)
+
+    @classmethod
+    # Prints usage information
+    def print_usage(cls):
+        print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
+        print("# clean_snapshots -p <pool> -t zfs \n")
+        print("Cleans target pool asking for confirmation with a slice date of <date>:")
+        print("# clean_snapshots -p <pool> -t zfs -d <date>\n")
+        print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
+        print("# clean_snapshots -f -p <pool> -t btrfs\n")
+        print("Cleans target pool not asking for confirmation with a slice date of <date>:")
+        print("# clean_snapshots -f -p <pool> -d <date> -t btrfs\n")
+
+# Provides date managing tools
+class DateManager(object):
+    @classmethod
+    def __init__(cls):
+        cls.date_today = cls.get_todays_date()
+        cls.date_slice = cls.get_default_date()
+        cls.date_slice_year = ""
+        cls.date_slice_month = ""
+        cls.date_slice_day = ""
+
+    @classmethod
+    # Updates the date slices
+    def update_date_slices(cls):
+        try:
+            cls.date_slice_year = cls.get_slice_year()
+            cls.date_slice_month = cls.get_slice_month()
+            cls.date_slice_day = cls.get_slice_day()
+        except IndexError:
+            Tools.die("Date must be in YYYY-mm-dd format! Example: " + cls.date_today)
+
+    @classmethod
+    # Gets the year from date_slice
+    def get_slice_year(cls):
+        return int(cls.date_slice.split("-")[0])
+
+    @classmethod
+    # Gets the month from date_slice
+    def get_slice_month(cls):
+        return int(cls.date_slice.split("-")[1])
+
+    @classmethod
+    # Gets the day from date_slice
+    def get_slice_day(cls):
+        return int(cls.date_slice.split("-")[2])
+
+    @classmethod
+    def get_todays_date(cls):
+        cmd = 'date +%F'
+        return Tools.run(cmd)
+
+    @classmethod
+    # Prints the date slices individually
+    def print_date_slices(cls):
+        print("Slice Month: " + str(cls.date_slice_month))
+        print("Slice Day: " + str(cls.date_slice_day))
+        print("Slice Year: " + str(cls.date_slice_year))
+
+    @classmethod
+    # Returns the default date (30 days before today)
+    def get_default_date(cls):
+        date_parts = cls.date_today.split("-")
+        new_month = int(date_parts[1]) - 1
+
+        # If the month ends up being 0 (January - 1), then roll back to december
+        # and also roll back the calendar year by 1.
+        if new_month == 0:
+            new_month = 12
+            new_year = int(date_parts[0]) - 1
+        else:
+            new_year = int(date_parts[0])
+
+        # If the month is less than 10, then pad the month with a 0
+        if new_month < 10:
+            def_date = str(new_year) + "-" + "0" + str(new_month) + "-" + date_parts[2]
+        else:
+            def_date = str(new_year) + "-" + str(new_month) + "-" + date_parts[2]
+
+        return def_date
+
 # Provides common functionality between things that cleaning a zfs and btrfs snapshot require.
 class FSManager(object):
     def __init__(self):
@@ -288,10 +295,10 @@ class FSManager(object):
         return len(self.queue)
 
     # Adds a snapshot to our removal list if it passes the slice date
-    def slicer(self, a_snap, at_split, date_split):
-        month = int(date_split[0])
-        day = int(date_split[1])
-        year = int(date_split[2])
+    def slicer(self, a_snap, date_split):
+        year = int(date_split[0])
+        month = int(date_split[1])
+        day = int(date_split[2])
 
         if year < DateManager.date_slice_year:
             #print("Snapshot " + a_snap + " is older by at least a year!")
@@ -315,9 +322,9 @@ class ZfsManager(FSManager):
         at_split = a_snap.split("@")
 
         # Splits the right side into month/date/year
-        date_split = at_split[1].split("_")
+        date_split = at_split[1].split("-")
 
-        super().slicer(a_snap, at_split, date_split)
+        super().slicer(a_snap, date_split)
 
     def destroy(self, a_snap):
         cmd = 'zfs destroy ' + a_snap
@@ -331,7 +338,7 @@ class ZfsManager(FSManager):
         cmd = 'zfs list -t snapshot -H -o name -s name | grep ' + self.pool
         super().get_pool_snapshots(cmd)
 
-# Provides btrfs specific attributes that is required to clean btrfs snapshots
+# Provides btrfs specific attributes that are required to clean btrfs snapshots
 class BtrfsManager(FSManager):
     def __init__(self):
         super().__init__()
@@ -343,9 +350,9 @@ class BtrfsManager(FSManager):
         at_split = a_snap.split("/")
 
         # Splits the date part into month/date/year
-        date_split = at_split[2].split("_")
+        date_split = at_split[2].split("-")
 
-        super().slicer(a_snap, at_split, date_split)
+        super().slicer(a_snap, date_split)
 
     def destroy(self, a_snap):
         snapshot_to_remove = self.top_level + "/" + a_snap
@@ -381,8 +388,6 @@ class BtrfsManager(FSManager):
 
         if not self.pool:
             Tools.die("There was an error retrieving the pool name from the path specified.")
-
-        #self.print_pool_info()
 
     def print_pool_info(self):
         print("Pool: " + self.pool)

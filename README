@@ -1,23 +1,29 @@
-Bliss ZFS Scripts 2.0.0
+Bliss ZFS Scripts 2.1.0
 Jonathan Vasquez <jvasquez1011@gmail.com>
 Designed for Gentoo Linux
-
-Licensed under the Mozilla Public License v2.0 which can be found in the LICENSE file.
+Licensed under the Mozilla Public License v2.0
 
 This is a collection of scripts that I use to manage my zfs setup at home.
 
 1) zfs_snapshot        - Takes a snapshot of a dataset
-2) btrfs_snapshot      - Takes a snapshot of all subvolumes under your toplevel path (excludes "snapshots" subvolume)
-2) clean_snapshots     - Deletes snapshots older than 30 days or older than a date set by the user (also supports btrfs)
+2) clean_snapshots     - Deletes snapshots older than 30 days or older than a date set by the user (supports btrfs)
 3) check_zfs_pool      - Checks the pools health. If degraded, it sends you an email
 4) zpool_scrub         - Scrubs the pool
-5) zfs_backup          - Backups up your datasets automatically
+5) zfs_backup          - Backs up your datasets automatically (replication to another pool)
 
 --
 Example scripts that would be called from your crontab
 *) tank_snapshot       - Wrapper around zfs_snapshot
 *) tank_backup         - Wrapper around zfs_backup
-*) btrfs_tank_snapshot - Wrapper around btrfs_snapshot
+
+--
+*) btrfs/btrfs_snapshot       - Takes a snapshot of all subvolumes under your toplevel path (excludes "snapshots" subvolume)
+*) btrfs/tank_snapshot        - Wrapper around btrfs_snapshot
+*) migration/snapshot_renamer - Utility used to rename existing *zfs* snapshots that were using the old style date format.
+*) debug/*                    - Files used for various debugging purposes
+
+--
+Note: Some of the tools also provide btrfs support. However at the moment, ZFS is the main focus for these scripts.
 
 These scripts can be used as cronjobs.
 

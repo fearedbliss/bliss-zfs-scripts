@@ -1,3 +1,30 @@
+2.1.0
+-------
+== overall ==
+- Changed the date format of the snapshots to be "YYYY-mm-dd-HHMM-ss" rather than "mm_dd_YY". This was done to
+  provide extremely fast sorting for the zfs list -t snapshot -s name -o name -H command. This new format should
+  also allow one to easily sort with the Linux 'sort -n' utility for both zfs and btrfs filesystem snapshots.
+
+  For existing users, I've provided a 'snapshot_renamer' utility that will allow you to rename all of your current
+  snapshots to the new format. This utility can be found in the 'migration' folder.
+
+  * Note, this renamer is only for zfs. No btrfs renamer will be provided.
+
+- Updated documentation, example, etc respectively
+
+== clean_snapshots ==
+  > Fixed a bug where if the month was january, then rolling back 30 days would not roll back to the correct year.
+  > Removed some unused code
+
+== zfs_backup ==
+  > Refactored to improve overall layout and remove DRY (There were multiple functions that did similar things).
+  > The backup script is now using "-s" for retrieving snapshots which also increases the retrieval of snapshots to
+    near O(1) times (or at least it feels that way :D).
+  > Reduced amount of unnecessary output information
+  > Fixed a bug where if the dataset to backup wasn't found, the program would still try to run
+  > The program will ask you for confirmation before continuing. You can skip the confirmation by passing the "-f" flag.
+  > Only one dataset will be allowed to be passed to the script at a time. Use the flags -b <backup pool> -d <dataset> to set locations.
+
 2.0.0
 -------
 - Relicensed back to the Mozilla Public License 2.0

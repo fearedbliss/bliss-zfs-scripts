@@ -27,7 +27,7 @@ If you want to specify a date, you can use the '-d' flag.
 
 Example:
 
-clean_snapshots -p tank -t zfs -d 06_09_14
+clean_snapshots -p tank -t zfs -d 2014-06-09
 
 Any snapshot older than June 9, 2014 will be removed. This allows for an easy way to delete all the snapshots
 in one go. Let's say that today is June 9, 2014, and you want to delete your already existing 350 snapshots
@@ -35,10 +35,10 @@ in one go. Let's say that today is June 9, 2014, and you want to delete your alr
 (like next year):
 
 zfs:
-clean_snapshots -p tank -t zfs -d 06_09_15
+clean_snapshots -p tank -t zfs -d 2015-06-09
 
 btrfs:
-clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 06_09_15
+clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 2015-06-09
 
 Then since every snapshot is older than 2015, it will mark all of them for deletion.
 
@@ -52,17 +52,16 @@ clean_snapshots -f -p tank -t zfs (-d <date> if you want to)
 
 zfs_backup - this script automates the process of performing full and incremental backups
 between two pools. When doing an incremental backup, the script automatically finds a common
-ancensor between the source and backup pool, and uses that to perform the incremental backup.
+link between the source and backup pool, and uses that to perform the incremental backup.
 
-You can pass the datasets you wish to backup to a target pool. The source datasets don't
-necessarily need to be in the same pool. For example, if you have a 'cockatiel' pool and an 'parakeet'
-pool and you want to backup to the 'animal_backup' pool, you could easily do:
+Example:
 
-zfs_backup animal_backup cockatiel/home parakeet/cage/food
+zfs_backup -b backup -d tank/gentoo/root
 
-I haven't tested this though and was debating whether or not to just remove this ability, and
-just let the user run zfs_backup twice, each with the datasets that they wish to backup but
-only in the same dataset.
+Will retrieve all the snapshots in both the "backup" and "tank" pools and attempt to do either a full backup or incremental backup.
+A full backup will only happen if the backup pool has no snapshots. If snapshots are found, it will only attempt to do an incremental backup.
+
+You can use the "-f" flag to let the script know not to ask you about starting the backup (used for automation)
 
 ----------
 
@@ -77,6 +76,6 @@ in that directory (so /mnt/toplevel/tank is your "top level subvolume"):
 tank <------ Considering this a top level subvolume (dataset) inside the btrfs volume for organization purposes.
 tank/root <--- Operating System /
 tank/home <--- /home
-tank/snapshots <--- Snapshots subvolume (organized by dates: i.e: tank/snapshots/03_28_15_1838/{tank, root, etc}
+tank/snapshots <--- Snapshots subvolume (organized by dates: i.e: tank/snapshots/2015-03-28-1838-01/{tank, root, etc}
 
 Note: The 'snapshots' directory/subvolume will not be snapshotted again (It will be excluded when the algorithm finds it).

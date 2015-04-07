@@ -24,7 +24,7 @@ STRIPPED="${1%/}"
 POOL_NAME="${STRIPPED##*/}"
 TOP_LEVEL="${1%/*}"
 
-SNAPSHOT_DATE=$(date +%m_%d_%y_%H%M)
+SNAPSHOT_DATE=$(date +%F-%H%M-%S)
 SNAPSHOTS_DIR_NAME="snapshots"
 
 POOL_TOP_LEVEL="${TOP_LEVEL}/${POOL_NAME}"
