@@ -1,3 +1,26 @@
+2.2.0
+-------
+- Implemented a massive performance improvement to the clean_snapshots for zfs.
+  It is now using the comma-delimited feature that the zfs destroy command supports.
+  Rather than using the previous implementation of getting each snapshot in the list
+  of snapshots to remove and calling zfs destroy on it individually, we are now
+  building a list of snapshots for the same dataset that need to be deleted, and passing
+  it into one zfs destroy command call. This enables the zfs destroy command to have a better
+  perspective of all the snapshots it will remove, and let it remove all of the snapshots
+  extremely quickly.
+
+  In order to deal with the ARG_MAX limit that shells/exec have, I've made it so that every 5000
+  snapshots, it "flushes" its buffer and trigger the zfs destroy command. 5000 was used because
+  for 'bliss-zfs-scripts', the snapshots are named: YYYY-mm-dd-HHMM-ss, + a comma to separate, + let's say
+  50 characters for w/e the base dataset name is, 95050~ characters.
+
+  The limit seems to be 2097152 (I did a getconf ARG_MAX on my Gentoo Linux system with bash) and the
+  max argument string length seems to be 131072 (at least from what the below website says starting at 2.6.23).
+
+  http://www.in-ulm.de/~mascheck/various/argmax/
+
+  Thus it seems that 5000 seems to be a good safe limit for most usages.
+
 2.1.0
 -------
 == overall ==

@@ -250,8 +250,9 @@ class FSManager(object):
 
     # Remove the snapshots
     def destroy_snapshots(self):
-        for snap in self.queue:
-            self.destroy(snap)
+        self.destroy()
+        #for snap in self.queue:
+            #self.destroy(snap)
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self, cmd):
@@ -279,6 +280,10 @@ class FSManager(object):
     # Retrieves the snapshot removal queue
     def get_queue(self):
         return self.queue
+
+    # Returns the length of the queue
+    def get_queue_length(self):
+        return len(self.queue)
 
     # Prints the snapshot removal queue
     def print_queue(self):
@@ -316,6 +321,12 @@ class FSManager(object):
 class ZfsManager(FSManager):
     def __init__(self):
         super().__init__()
+        self.base_dataset = ""
+        self.batch_of_snapshots = []
+
+        # Remove 5000 snapshots per buffer. This is to prevent us from reaching
+        # the ARG_MAX limits in shell/exec().
+        self.batch_flush_point = 5000
 
     def slicer(self, a_snap):
          # Left side = dataset, Right Side = date [0, 1]
@@ -326,12 +337,87 @@ class ZfsManager(FSManager):
 
         super().slicer(a_snap, date_split)
 
-    def destroy(self, a_snap):
-        cmd = 'zfs destroy ' + a_snap
-        super().destroy(a_snap, cmd)
+    # Destroys the snapshots
+    def destroy(self):
+        self.build_batch_and_clean()
+
+    # Destroys the prepared batch (Contains base dataset and a comma-delimited list of snapshot dates)
+    def destroy_batch(self, prepared_batch):
+        cmd = 'zfs destroy ' + prepared_batch
+        out = Tools.run(cmd)
+
+    # Deletes all the snapshots currently in batch queue and clears out the queue for re-use
+    def destroy_and_clear(self):
+        self.destroy_batch(self.return_prepared_list(self.batch_of_snapshots))
+        self.batch_of_snapshots.clear()
 
     def get_pool_info(self, pool):
         self.pool = pool
+
+    # Retrieves the short name of the snapshot (The part after the @)
+    def get_snapshot_shortname(self, snapshot):
+        splitted = snapshot.split("@")
+        return splitted[1]
+
+    # Returns the dataset of this snapshot
+    def get_snapshot_dataset(self, snapshot):
+        splitted = snapshot.split("@")
+        return splitted[0]
+
+    # Sets the base dataset and adds the snapshot to the queue
+    def set_base_and_queue(self, snapshot):
+        self.base_dataset = self.get_snapshot_dataset(snapshot)
+        print("Cleaning snapshots for " + self.base_dataset + "...")
+        self.batch_of_snapshots.append(snapshot)
+
+    # Prepares a list of snapshots to be deleted starting with the base dataset name
+    # followed by a comma-delimited list of snapshots to delete
+    def return_prepared_list(self, list_to_prepare):
+        return ','.join(list_to_prepare)
+
+    # Builds the batch list for the snapshots we should clean
+    # and calls the functions necessary to actually delete the snapshots
+    def build_batch_and_clean(self):
+        for i in range(len(self.queue)):
+            if len(self.batch_of_snapshots) != self.batch_flush_point:
+                if len(self.batch_of_snapshots) == 0:
+                    # Set the base dataset so that we can make sure that every subsequent
+                    # snapshot is part of the same dataset.
+                    self.set_base_and_queue(self.queue[i])
+                else:
+                    current_dataset = self.get_snapshot_dataset(self.queue[i])
+
+                    # If the current dataset is the same as our base dataset, then
+                    # this is actually going to be the next dataset that we delete
+                    # when we flush our batch. If it isn't, then this means that we've
+                    # reached the end of all the snapshots that this dataset has
+                    # (since the dataset queue list is sorted), and that we should clean,
+                    # the last bit of snapshots for the dataset, reset the base dataset,
+                    # and start collecting snapshots for the next flush.
+                    if current_dataset == self.base_dataset:
+                        short_name = self.get_snapshot_shortname(self.queue[i])
+                        self.batch_of_snapshots.append(short_name)
+                    else:
+                        #print("Dataset end reached. Flushing...")
+                        self.destroy_and_clear()
+                        self.set_base_and_queue(self.queue[i])
+            else:
+                #print("Buffer is full! Flushing...")
+                self.destroy_and_clear()
+
+                # Add the current dataset into the snapshot list so it can be cleared
+                # during the next flush. This snapshot is still part of our existing base_dataset.
+                self.batch_of_snapshots.append(self.queue[i])
+
+        # If the buffer didn't become full but we already went through all the snapshots then flush now
+        if len(self.batch_of_snapshots) != 0:
+            #print("Flushing the last remaining snapshots...")
+            self.destroy_and_clear()
+
+            if len(self.batch_of_snapshots) == 0:
+                print("The pool has been successfully cleaned!")
+            else:
+                Tools.die("There was an error cleaning the pool!")
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):
