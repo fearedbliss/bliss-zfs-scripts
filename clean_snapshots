@@ -250,9 +250,8 @@ class FSManager(object):
 
     # Remove the snapshots
     def destroy_snapshots(self):
-        self.destroy()
-        #for snap in self.queue:
-            #self.destroy(snap)
+        for snap in self.queue:
+            self.destroy(snap)
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self, cmd):
@@ -338,18 +337,18 @@ class ZfsManager(FSManager):
         super().slicer(a_snap, date_split)
 
     # Destroys the snapshots
-    def destroy(self):
+    def destroy_snapshots(self):
         self.build_batch_and_clean()
-
-    # Destroys the prepared batch (Contains base dataset and a comma-delimited list of snapshot dates)
-    def destroy_batch(self, prepared_batch):
-        cmd = 'zfs destroy ' + prepared_batch
-        out = Tools.run(cmd)
 
     # Deletes all the snapshots currently in batch queue and clears out the queue for re-use
     def destroy_and_clear(self):
-        self.destroy_batch(self.return_prepared_list(self.batch_of_snapshots))
+        self.destroy(self.return_prepared_list(self.batch_of_snapshots))
         self.batch_of_snapshots.clear()
+
+    # Destroys the prepared batch (Contains base dataset and a comma-delimited list of snapshot dates)
+    def destroy(self, prepared_batch):
+        cmd = 'zfs destroy ' + prepared_batch
+        out = Tools.run(cmd)
 
     def get_pool_info(self, pool):
         self.pool = pool
