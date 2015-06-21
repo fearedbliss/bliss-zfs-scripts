@@ -1,3 +1,8 @@
+2.2.2
+------
+- Fixed main script 'zfs', 'zpool', and 'btrfs' commands to use their full path so that they
+  can be used in cronjobs with 'no command not found' errors.
+
 2.2.1
 ------
 - Fixed regression where the btrfs command to delete snapshots became broken.

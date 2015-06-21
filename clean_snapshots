@@ -13,6 +13,9 @@ from subprocess import call
 from subprocess import check_output
 from subprocess import CalledProcessError
 
+zfs_cmd = "/sbin/zfs"
+btrfs_cmd = "/sbin/btrfs"
+
 # Enables the user to efficiently clean the snapshots in their pool.
 class Cleaner(object):
     def __init__(self):
@@ -347,7 +350,7 @@ class ZfsManager(FSManager):
 
     # Destroys the prepared batch (Contains base dataset and a comma-delimited list of snapshot dates)
     def destroy(self, prepared_batch):
-        cmd = 'zfs destroy ' + prepared_batch
+        cmd = zfs_cmd + ' destroy ' + prepared_batch
         out = Tools.run(cmd)
 
     def get_pool_info(self, pool):
@@ -420,7 +423,7 @@ class ZfsManager(FSManager):
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):
-        cmd = 'zfs list -t snapshot -H -o name -s name | grep ' + self.pool
+        cmd = zfs_cmd + ' list -t snapshot -H -o name -s name | grep ' + self.pool
         super().get_pool_snapshots(cmd)
 
 # Provides btrfs specific attributes that are required to clean btrfs snapshots
@@ -441,7 +444,7 @@ class BtrfsManager(FSManager):
 
     def destroy(self, a_snap):
         snapshot_to_remove = self.top_level + "/" + a_snap
-        cmd = 'btrfs subvol del ' + snapshot_to_remove
+        cmd = btrfs_cmd + ' subvol del ' + snapshot_to_remove
         super().destroy(a_snap, cmd)
 
     def destroy_snapshots(self):
@@ -457,7 +460,7 @@ class BtrfsManager(FSManager):
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):
-        cmd = 'btrfs subvol list ' + self.snapshots_dir + ' -o | cut -d " " -f 9'
+        cmd = btrfs_cmd + ' subvol list ' + self.snapshots_dir + ' -o | cut -d " " -f 9'
         super().get_pool_snapshots(cmd)
 
     # Extracts the required information from the -p flag
