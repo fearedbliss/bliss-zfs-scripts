@@ -1,10 +1,12 @@
 zfs_snapshot takes a snapshot only of the datasets that it is given.
 This allows you to have maximum control of what specific datasets
-you want to backup.
+you want to backup. It also labels the snapshots with an arbitrary
+tag given by you. You can use it to give your snapshots more meaning
+by passing a tag indicating a time "HOURLY", "DAILY", "MONTHLY", "YEARLY".
 
 An example of backing up a few datasets in a pool:
 
-# zfs_snapshot tank/gentoo/root tank/gentoo/home ...
+# zfs_snapshot HOURLY tank/gentoo/root tank/gentoo/home ...
 
 You can automate this by using a wrapper script that is called via cronjob.
 You can use the 'tank_snapshot' wrapper script as a base for your datasets backups.
@@ -27,18 +29,18 @@ If you want to specify a date, you can use the '-d' flag.
 
 Example:
 
-clean_snapshots -p tank -t zfs -d 2014-06-09
+clean_snapshots -p tank -t zfs -d 2014-06-09-0000
 
-Any snapshot older than June 9, 2014 will be removed. This allows for an easy way to delete all the snapshots
-in one go. Let's say that today is June 9, 2014, and you want to delete your already existing 350 snapshots
+Any snapshot older than June 9, 2014 00:00 will be removed. This allows for an easy way to delete all the snapshots
+in one go. Let's say that today is June 9, 2014 00:00, and you want to delete your already existing 350 snapshots
 (that were created with zfs_snapshot beforehand), you could just set the date to something in the future
 (like next year):
 
 zfs:
-clean_snapshots -p tank -t zfs -d 2015-06-09
+clean_snapshots -p tank -t zfs -d 2015-06-09-0000
 
 btrfs:
-clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 2015-06-09
+clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 2015-06-09-0000
 
 Then since every snapshot is older than 2015, it will mark all of them for deletion.
 

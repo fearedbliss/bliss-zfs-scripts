@@ -1,3 +1,17 @@
+2.3.0
+------
+- Added tag support in the zfs/tank_snapshot scripts. This allows you to better organize
+ your snapshots by adding any tag you want. Something like 'HOURLY', 'DAILY', 'WEEKLY', 'YEARLY.
+
+- Added support for the 'time' section of the snapshots in the cleaner. This allows you to not
+  only delete snapshots up to a specific date, but also a specific time.
+
+  Example: Delete all snapshots until August 5th, 2015 @ 5:00 PM
+           clean_snapshots -t zfs -p tank -d 2015-08-05-1700
+
+- Updated the cron list in the EXAMPLEs file so that you can easily set up the
+  snapshots tags at the various times during the year.
+
 2.2.2
 ------
 - Fixed main script 'zfs', 'zpool', and 'btrfs' commands to use their full path so that they

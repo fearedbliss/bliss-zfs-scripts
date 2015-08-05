@@ -8,8 +8,9 @@
 
 ZFS="/sbin/zfs"
 
-if [[ $# -eq 0 ]]; then
-    echo "You haven't passed a pool name. Exiting."
+if [[ $# -le 1 ]]; then
+    echo "You must pass the time tag and the dataset you want to snapshot."
+    echo "Example: zfs_snapshot HOURLY tank/gentoo/root"
     exit
 fi
 
@@ -18,7 +19,16 @@ fi
 # different snapshots.
 _DATE=$(date +%F-%H%M-%S)
 
+# A tag for our snapshots. We can use these tags to quickly label things as
+# HOURLY, DAILY, MONTHLY, YEARLY. Technically this tag can be anything you want.
+_TAG=$1
+_FULL_SNAPSHOT_NAME=${_DATE}-${_TAG}
+
+# Skip the first parameter since this is just the tag which is stable
+# across all of our dataset snapshot names.
+shift
+
 while [ "$1" ]; do
-    ${ZFS} snapshot $1@${_DATE}
+    ${ZFS} snapshot $1@${_FULL_SNAPSHOT_NAME}
     shift
 done

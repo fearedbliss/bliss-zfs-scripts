@@ -1,10 +1,14 @@
 This is an example crontab. I will use mine as an example:
 
 # Run a scrub every week at 05:00 on Sunday
-00 05 * * 0 /usr/local/sbin/zpool_scrub tank
+00 05 * * 00 /usr/local/sbin/zpool_scrub tank
 
-# Takes a snapshot every hour (See the tank_snapshot file)
-00 * * * * /usr/local/sbin/tank_snapshot
+# Creates snapshots during different time periods for your datasets
+00 * * * * /usr/local/sbin/tank_snapshot HOURLY
+00 00 * * * /usr/local/sbin/tank_snapshot DAILY
+* * * * 00 /usr/local/sbin/tank_snapshot WEEKLY
+* * 01 * * /usr/local/sbin/tank_snapshot MONTHLY
+00 00 01 01 * /usr/local/sbin/tank_snapshot YEARLY
 
 # Check the pool health twice a day
 00 00,12 * * * /usr/local/sbin/check_zfs_pool
