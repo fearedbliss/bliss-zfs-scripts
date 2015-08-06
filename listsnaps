@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Copyright 2013-2015 Jonathan Vasquez <jvasquez1011@gmail.com>
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+if [[ $# -eq 0 ]]; then
+	zfs list -t snapshot -H -s name -o name
+else
+	zfs list -t snapshot -H -s name -o name | grep $1
+fi
