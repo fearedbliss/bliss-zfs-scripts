@@ -50,6 +50,11 @@ Example:
 
 clean_snapshots -f -p tank -t zfs (-d <date> if you want to)
 
+You could also delete snapshots up to a specific date with a specific tag. Assuming you have snapshots
+that all have the tag "HOURLY", you can do the following:
+
+clean_snapshots -p tank -t zfs -d 2015-08-08-1500 -l HOURLY
+
 ----------
 
 zfs_backup - this script automates the process of performing full and incremental backups

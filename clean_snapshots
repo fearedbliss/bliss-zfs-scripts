@@ -18,82 +18,37 @@ btrfs_cmd = "/sbin/btrfs"
 
 # Enables the user to efficiently clean the snapshots in their pool.
 class Cleaner:
-    def __init__(self):
-        # Starts up the DateManager so that the static variables within the class are initialized.
-        DateManager()
+    def setup_fs_manager(self):
+        fstype = paramUtil.get_filesystem_type()
 
-        # Don't ask for confirmation when deleting snapshots?
-        self.force = 0
+        if not fstype:
+            Tools.die("No filesystem type was specified.")
 
-        # What type of filesystem snapshots will we be managing? (zfs or btrfs)
-        self.fstype = ""
-
-    # Checks parameters and running user
-    def welcome(self):
-        user = check_output(["whoami"], universal_newlines=True).strip()
-
-        if user != "root":
-            Tools.die("This program must be ran as root")
-
-        arguments = sys.argv[1:]
-
-        # clean_snapshots -f -p <pool> -t <fstype> -d <date>
-        # clean_snapshots -f -p tank -t zfs -d 2014-06-09-0000
-        if len(arguments) >= 1:
-            for i in range(len(arguments)):
-                # Sets the force flag
-                if arguments[i] == "-f":
-                    self.force = 1
-
-                # Sets the type of snapshots we will be cleaning (zfs or btrfs)
-                if arguments[i] == "-t":
-                    try:
-                        self.fstype = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No filesystem type was passed to -t")
-
-                # Sets the top level dataset name
-                elif arguments[i] == "-p":
-                    try:
-                        self.pool = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No pool name was passed to -p")
-
-                # Sets the slice date
-                elif arguments[i] == "-d":
-                    try:
-                        DateManager.date_slice = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No date was passed to -d")
-
-                # Displays the help/usage message
-                elif arguments[i] == "-h":
-                    Tools.print_usage()
-                    quit(0)
-
-            if not self.fstype:
-                Tools.die("No filesystem type was specified.")
-
-            if self.fstype == "zfs":
-                self.fs_manager = ZfsManager()
-            elif self.fstype == "btrfs":
-                self.fs_manager = BtrfsManager()
-            else:
-                Tools.die("The filesystem you've specified is not supported!")
-
-            # Extracts the pool information needed given the filesystem type being used
-            self.fs_manager.get_pool_info(self.pool)
-
-            # Updates the time slices immediately, this also serves
-            # as a check to see if the user wrote in the date in the
-            # correct format: month-date-year-time
-            DateManager.update_date_slices()
+        if fstype == "zfs":
+            self.fs_manager = ZfsManager()
+        elif fstype == "btrfs":
+            self.fs_manager = BtrfsManager()
         else:
-            Tools.print_usage()
-            Tools.die("You must pass the pool you want to clean. See the above examples.")
+            Tools.die("The filesystem you've specified is not supported!")
+
+        tag = paramUtil.get_tag()
+
+        if tag:
+            self.fs_manager.set_tag(tag)
+
+        # Extracts the pool information needed given the filesystem type being used
+        self.fs_manager.set_pool_info(paramUtil.get_pool_name())
+
+        # Updates the time slices immediately, this also serves
+        # as a check to see if the user wrote in the date in the
+        # correct format: month-date-year-time
+        DateManager.update_date_slices()
 
     # Main
     def start(self):
+        # Sets up the filesystem manager, and a few other things such as time slices.
+        self.setup_fs_manager()
+
         print("Today's Date : " + DateManager.date_today)
         print("Slice Date   : " + DateManager.date_slice)
         print("Pool         : " + self.fs_manager.pool)
@@ -114,7 +69,7 @@ class Cleaner:
             print("")
 
         if self.fs_manager.queue:
-            if not self.force:
+            if not paramUtil.is_force():
                 choice = input("Do you want to remove the above snapshots? [y/N]: ")
                 print("")
 
@@ -134,6 +89,98 @@ class Cleaner:
                 self.fs_manager.destroy_snapshots()
         else:
             print("The pool is already clean. Exiting.")
+
+# Retrieves and retains parameter data
+class ParameterUtility:
+    def __init__(self):
+        # Don't ask for confirmation when deleting snapshots?
+        self._force = False
+
+        # What type of filesystem snapshots will we be managing? (zfs or btrfs)
+        self._fstype = ""
+
+        # Label/Tag.
+        self._tag = ""
+
+        # Pool name
+        self._pool_name = ""
+
+    def get_filesystem_type(self):
+        return self._fstype
+
+    def get_tag(self):
+        return self._tag
+
+    def get_pool_name(self):
+        return self._pool_name
+
+    def is_force(self):
+        return self._force
+
+    def set_filesystem_type(self, fstype):
+        self._fstype = fstype
+
+    def set_tag(self, tag):
+        self._tag = tag
+
+    def set_pool_name(self, pool_name):
+        self._pool_name = pool_name
+
+    def set_force(self, flag):
+        self._force = flag
+
+    # Checks parameters and running user
+    def parse_parameters(self):
+        user = check_output(["whoami"], universal_newlines=True).strip()
+
+        if user != "root":
+            Tools.die("This program must be ran as root")
+
+        arguments = sys.argv[1:]
+
+        # clean_snapshots -f -p <pool> -t <fstype> -d <date> -l <tag label>
+        # clean_snapshots -f -p tank -t zfs -d 2014-06-09-0000 -l HOURLY
+        if len(arguments) >= 1:
+            for i in range(len(arguments)):
+                # Sets the force flag
+                if arguments[i] == "-f":
+                    self.set_force(True)
+
+                # Sets the type of snapshots we will be cleaning (zfs or btrfs)
+                if arguments[i] == "-t":
+                    try:
+                        self.set_filesystem_type(arguments[i+1])
+                    except IndexError:
+                        Tools.die("No filesystem type was passed to -t")
+
+                # Sets the top level dataset name
+                elif arguments[i] == "-p":
+                    try:
+                        self.set_pool_name(arguments[i+1])
+                    except IndexError:
+                        Tools.die("No pool name was passed to -p")
+
+                # Sets the slice date
+                elif arguments[i] == "-d":
+                    try:
+                        DateManager.date_slice = arguments[i+1]
+                    except IndexError:
+                        Tools.die("No date was passed to -d")
+
+                # Sets the label tag
+                elif arguments[i] == "-l":
+                    try:
+                        self.set_tag(arguments[i+1])
+                    except IndexError:
+                        Tools.die("No tag was passed to -l")
+
+                # Displays the help/usage message
+                elif arguments[i] == "-h":
+                    Tools.print_usage()
+                    quit(0)
+        else:
+            Tools.print_usage()
+            Tools.die("You must pass the pool you want to clean. See the above examples.")
 
 # Provides utility functions that can be used by any class
 class Tools:
@@ -155,6 +202,8 @@ class Tools:
         print("# clean_snapshots -p <pool> -t zfs \n")
         print("Cleans target pool asking for confirmation with a slice date of <date>:")
         print("# clean_snapshots -p <pool> -t zfs -d <date>\n")
+        print("Cleans target pool asking for confirmation with a slice date of <date> and with a tag of <tag>:")
+        print("# clean_snapshots -p <pool> -t zfs -d <date> -l <tag>\n")
         print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
         print("# clean_snapshots -f -p <pool> -t btrfs\n")
         print("Cleans target pool not asking for confirmation with a slice date of <date>:")
@@ -253,6 +302,9 @@ class FSManager:
         # Pool
         self.pool = ""
 
+        # Tag
+        self.tag = ""
+
     # Checks all the snapshots in the queue and if older adds them to our deletion queue
     def check_snapshots(self):
         for snap in self.snapshots:
@@ -270,6 +322,9 @@ class FSManager:
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self, cmd):
+        if self.tag:
+            cmd = cmd + " | grep " + self.tag
+
         try:
             results = Tools.run(cmd)
 
@@ -286,6 +341,10 @@ class FSManager:
                 print("Snapshot: " + snap)
         else:
             print("No snapshots available!")
+
+    # Sets the tag
+    def set_tag(self, tag):
+        self.tag = tag
 
     # Adds a snapshot to our removal queue
     def add_to_queue(self, a_snap):
@@ -321,16 +380,20 @@ class FSManager:
         time = int(date_split[3])
 
         if year < DateManager.date_slice_year:
-            #print("Snapshot " + a_snap + " is older by at least a year!")
+            # Snapshot is older by at least a year
             self.add_to_queue(a_snap)
-        elif month < DateManager.date_slice_month:
-            #print("Snapshot " + a_snap + " is older by at least a month!")
-            self.add_to_queue(a_snap)
-        elif month == DateManager.date_slice_month and day <= DateManager.date_slice_day and time <= DateManager.date_slice_time:
-            #print("Snapshot " + a_snap + " is older by a few days of the slice date!")
-            self.add_to_queue(a_snap)
-        #else:
-           #print("Snapshot " + a_snap + " is newer than slice date " + DateManager.date_slice + "!")
+        elif year == DateManager.date_slice_year:
+            if month < DateManager.date_slice_month:
+                # Snapshot is older by at least a month
+                self.add_to_queue(a_snap)
+            elif month == DateManager.date_slice_month:
+                if day < DateManager.date_slice_day:
+                    # Snapshot is older by at least a day
+                    self.add_to_queue(a_snap)
+                elif day == DateManager.date_slice_day:
+                    if time <= DateManager.date_slice_time:
+                    # Snapshot is the same day as today but is older or equal to the slice time.
+                        self.add_to_queue(a_snap)
 
 # Provides zfs specific attributes that is required to clean zfs snapshots
 class ZfsManager(FSManager):
@@ -366,7 +429,7 @@ class ZfsManager(FSManager):
         cmd = zfs_cmd + ' destroy ' + prepared_batch
         out = Tools.run(cmd)
 
-    def get_pool_info(self, pool):
+    def set_pool_info(self, pool):
         self.pool = pool
 
     # Retrieves the short name of the snapshot (The part after the @)
@@ -477,7 +540,7 @@ class BtrfsManager(FSManager):
         super().get_pool_snapshots(cmd)
 
     # Extracts the required information from the -p flag
-    def get_pool_info(self, pool):
+    def set_pool_info(self, pool):
         # Strip trailing / from end of 'pool' parameter path since we do some further
         # breakdowns later on to extract the correct paths from this single parameter.
         # Example: /mnt/toplevel/tank/ -> /mnt/toplevel/tank
@@ -496,6 +559,11 @@ class BtrfsManager(FSManager):
         print("Snapshots Dir: " + self.snapshots_dir)
 
 if __name__ == "__main__":
+    # Starts up the following class so that the static variables within it are initialized.
+    DateManager()
+
     cleaner = Cleaner()
-    cleaner.welcome()
+    paramUtil = ParameterUtility()
+
+    paramUtil.parse_parameters()
     cleaner.start()

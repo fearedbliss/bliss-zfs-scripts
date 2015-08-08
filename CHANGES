@@ -1,3 +1,23 @@
+2.4.0
+------
+- Added a 'listsnaps' script that you can use to quickly view your snapshots.
+  You can also pass a parameter so that it "greps" the snapshot list with it.
+
+clean_snapshots:
+  - Fixed a bug in the snapshot cleaner where snapshots that were an older date
+    but had a higher time than the current slice date, would not be deleted.
+  - The '-l' flag has been introduced. This allows you to pass a "tag" into the program
+    which will serve as an extra filter when deleting snapshots.
+
+    Example:
+
+    clean_snapshots -t zfs -p tank -d 2015-08-08-1500 -l HOURLY
+
+    "Delete any zfs snapshot in the 'tank' pool up to August 8th, 2015 @ 3:00 PM that has the "HOURLY" tag
+    in its name.
+
+  - A bit of refactoring was done to the parameter code in order to have a more clean design.
+
 2.3.0
 ------
 - Added tag support in the zfs/tank_snapshot scripts. This allows you to better organize
@@ -6,7 +26,7 @@
 - Added support for the 'time' section of the snapshots in the cleaner. This allows you to not
   only delete snapshots up to a specific date, but also a specific time.
 
-  Example: Delete all snapshots until August 5th, 2015 @ 5:00 PM
+  Example: Delete all snapshots up to August 5th, 2015 @ 5:00 PM
            clean_snapshots -t zfs -p tank -d 2015-08-05-1700
 
 - Updated the cron list in the EXAMPLEs file so that you can easily set up the
