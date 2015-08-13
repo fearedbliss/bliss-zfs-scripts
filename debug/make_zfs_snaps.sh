@@ -10,18 +10,18 @@
 
 DATASET_ROOT="tank/gentoo/root"
 DATASET_HOME="tank/gentoo/home"
-FAKE_DATE="2012-01-01"
+FAKE_DATE="1990-01-01"
 FAKE_HOUR="0000"
-FAKE_SECOND="00"
+FAKE_TAG="TEST"
 FAKE="${FAKE_DATE}-${FAKE_HOUR}"
 
-MAX=100
+MAX=10
 
-for i in $(seq 1 ${MAX}); do
-	SNAPSHOT1="${DATASET_ROOT}@${FAKE}-${i}"
-	SNAPSHOT2="${DATASET_HOME}@${FAKE}-${i}"
-	echo "Creating snapshot: ${SNAPSHOT1}"
-	zfs snapshot ${SNAPSHOT1}
-	echo "Creating snapshot: ${SNAPSHOT2}"
-	zfs snapshot ${SNAPSHOT2}
+for i in $(seq -w 1 ${MAX}); do
+    SNAPSHOT1="${DATASET_ROOT}@${FAKE}-${i}-${FAKE_TAG}"
+    SNAPSHOT2="${DATASET_HOME}@${FAKE}-${i}-${FAKE_TAG}"
+    echo "Creating snapshot: ${SNAPSHOT1}"
+    zfs snapshot ${SNAPSHOT1}
+    echo "Creating snapshot: ${SNAPSHOT2}"
+    zfs snapshot ${SNAPSHOT2}
 done

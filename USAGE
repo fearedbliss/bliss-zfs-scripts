@@ -36,11 +36,7 @@ in one go. Let's say that today is June 9, 2014 00:00, and you want to delete yo
 (that were created with zfs_snapshot beforehand), you could just set the date to something in the future
 (like next year):
 
-zfs:
 clean_snapshots -p tank -t zfs -d 2015-06-09-0000
-
-btrfs:
-clean_snapshots -p /mnt/toplevel/tank -t btrfs -d 2015-06-09-0000
 
 Then since every snapshot is older than 2015, it will mark all of them for deletion.
 
@@ -57,7 +53,7 @@ clean_snapshots -p tank -t zfs -d 2015-08-08-1500 -l HOURLY
 
 ----------
 
-zfs_backup - this script automates the process of performing full and incremental backups
+zfs_backup - This script automates the process of performing full and incremental backups
 between two pools. When doing an incremental backup, the script automatically finds a common
 link between the source and backup pool, and uses that to perform the incremental backup.
 
@@ -70,19 +66,7 @@ A full backup will only happen if the backup pool has no snapshots. If snapshots
 
 You can use the "-f" flag to let the script know not to ask you about starting the backup (used for automation)
 
-----------
+You can also update to a specific tagged snapshot. For example, if you wanted to update your backup pool up to the latest available
+snapshot that has the "DAILY" tag, you would do the following:
 
-btrfs layout for snapshots and cleaning:
-
-The snapshot script will snapshot each directory it finds in the 'tank' folder
-that's inside /mnt/toplevel (the 'snapshots' directory will be excluded).
-
-Assume you mounted /dev/sda1 (your btrfs volume) at /mnt/toplevel and then you make a subvolume called 'tank'
-in that directory (so /mnt/toplevel/tank is your "top level subvolume"):
-
-tank <------ Considering this a top level subvolume (dataset) inside the btrfs volume for organization purposes.
-tank/root <--- Operating System /
-tank/home <--- /home
-tank/snapshots <--- Snapshots subvolume (organized by dates: i.e: tank/snapshots/2015-03-28-1838-01/{tank, root, etc}
-
-Note: The 'snapshots' directory/subvolume will not be snapshotted again (It will be excluded when the algorithm finds it).
+zfs_backup -b backup -d tank/gentoo/root -l DAILY

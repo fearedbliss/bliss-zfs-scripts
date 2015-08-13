@@ -1,7 +1,35 @@
-next
+2.5.0
 ------
 - Fixed 'WEEKLY' example entry in the file so that it doesn't take a snapshot
   for every minute on that day.
+
+- Improved the zfs debug test script
+
+zfs_backup:
+  - The zfs incremental backups will now only send the differences between
+    the source snapshot and the target snapshot (-i). It will no longer send all of
+    the snapshots/changes in between those two snapshots (-I). This signficantly speeds
+    up backups, and also reduces IO since less snapshots need to be parsed (only 2).
+
+  - You can now use tags when sends or increments (-l). Normally it will get the latest snapshot
+    you have on the source pool and increment the backup pool up to that day. But you might
+    want to be a bit more controlled and only backup to the latest snapshot that has a
+    specific tag.
+
+    Example:
+
+    Backup up to the latest DAILY snapshot:
+
+    zfs_backup -b backup -d tank/gentoo/root -l DAILY
+
+    Will find the latest snapshot available that also has the "DAILY" tag and use that
+    as the snapshot end point for increments or full backups.
+
+  - The backup script will now display what is going to happen before it asks you if
+    you want to start the backup.
+
+- Removed 'btrfs' debug scripts and documentation. Will leave the code path there for now
+  in case people find use for it in the future. But those code paths are _not_ tested.
 
 2.4.0
 ------
