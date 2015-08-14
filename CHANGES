@@ -1,3 +1,15 @@
+2.5.1
+------
+- Minor visual improvements.
+
+zfs_backup:
+- Improved some of the messages so that when a full backup is going to be performed, you know
+  which snapshot will be sent beforehand.
+
+tank_backup:
+- This script now supports you passing an optional parameter which will act as a "tag" to filter the snapshots
+  you want to send.
+
 2.5.0
 ------
 - Fixed 'WEEKLY' example entry in the file so that it doesn't take a snapshot

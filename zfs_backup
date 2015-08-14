@@ -190,7 +190,7 @@ class Backup:
             quit()
 
         if self.tag and filtered_pool_snapshots_length == 0:
-            print("No snapshots detected with the tag specified.")
+            print("No snapshots detected with the tag specified.\n")
             quit()
 
         # Values shared between various backup methods
@@ -203,19 +203,19 @@ class Backup:
 
         # If one or more snapshots exist in the source pool, but no backups exist in the target pool [ full backup ]
         if snapshots_length > 0 and backup_pool_snapshots_length == 0:
-            print("One or more snapshots exist in the source pool, but none exist in the backup pool. Attempting to send a full backup ...\n")
+            print("No snapshots exist in the backup pool. Attempting to send a full backup of: " + final_snapshot + "\n")
             final_cmd = zfs_cmd + ' send -R ' + final_snapshot + ' | ' + zfs_cmd + ' recv -dvF ' + self.backup_pool
 
         # If one or more snapshots exist in the source pool, and at least one snapshot exists in the backup pool [ incremental ]
         elif snapshots_length > 0 and backup_pool_snapshots_length > 0:
-            print("One or more snapshots exist on both pools. Attempting to do an incremental backup ...\n")
+            print("Attempting to do an incremental backup ...\n")
 
             backup_pool_last_snapshot = backup_pool_snapshots[backup_pool_snapshots_length - 1]
             common_link = self.format_to_source(backup_pool_last_snapshot)
 
             # Are we already up to date?
             if self.format_to_backup(final_snapshot) == backup_pool_last_snapshot:
-                print(self.dataset + " is already up to date!")
+                print(self.dataset + " is already up to date!\n")
                 quit()
             # The last snapshot in the backup pool needs to be available in the source pool
             # so that we can use that as the starting point for the incremental backup.
@@ -223,7 +223,7 @@ class Backup:
                 print("Incrementing: " + backup_pool_last_snapshot + " -> " + self.format_to_backup(final_snapshot) + "\n")
                 final_cmd = zfs_cmd + ' send -i ' + common_link + " " + final_snapshot + ' | ' + zfs_cmd + ' recv -dvF ' + self.backup_pool
             else:
-                print("No common link found. Unable to do an incremental backup!")
+                print("No common link found. Unable to do an incremental backup!\n")
                 quit()
 
         if not self.force:
