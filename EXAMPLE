@@ -7,7 +7,7 @@ This is an example crontab. I will use mine as an example:
 00 * * * * /usr/local/sbin/tank_snapshot HOURLY
 00 00 * * * /usr/local/sbin/tank_snapshot DAILY
 00 00 * * 00 /usr/local/sbin/tank_snapshot WEEKLY
-* * 01 * * /usr/local/sbin/tank_snapshot MONTHLY
+00 00 01 * * /usr/local/sbin/tank_snapshot MONTHLY
 00 00 01 01 * /usr/local/sbin/tank_snapshot YEARLY
 
 # Check the pool health twice a day

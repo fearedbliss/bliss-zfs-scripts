@@ -1,3 +1,8 @@
+2.5.2
+------
+- Fixed a minor bug with the cron example for MONTHLY, which would make
+  cron take a MONTHLY snapshot every minute during that MONTHLY date.
+
 2.5.1
 ------
 - Minor visual improvements.
