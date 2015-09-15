@@ -16,6 +16,6 @@ fi
 _TAG=$1
 
 # Takes a controlled snapshot of each dataset in the 'tank' pool
-${SPATH}/zfs_snapshot ${_TAG} \
+"${SPATH}"/zfs_snapshot "${_TAG}" \
     tank/gentoo/root \
     tank/gentoo/home

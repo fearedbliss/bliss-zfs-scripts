@@ -1,3 +1,16 @@
+2.6.0
+------
+clean_snapshots:
+    - The cleaner now automatically keeps 1000 snapshots by default regardless of date.
+      This is so that if you don't backup for a long period of time, all of your "old" snapshots
+      don't get nuked.
+    - You can pass the "-m" option to override the minimum amount of snapshots to keep
+    - You can pass the "-i" option to ignore the minimum amount of snapshots.
+
+    Example: If you have 1000 snapshots, and you set the minimum to 400, the 1000 snapshots are all
+             older than 30 days, the cleaner will remove 600 of them and you will be left with your
+             desired 400 minimum.
+
 2.5.2
 ------
 - Fixed a minor bug with the cron example for MONTHLY, which would make

@@ -1,7 +1,8 @@
-Bliss ZFS Scripts 2.5.2
+Bliss ZFS Scripts 2.6.0
 Jonathan Vasquez <jvasquez1011@gmail.com>
+Mozilla Public License 2.0
+
 Designed for Gentoo Linux
-Licensed under the Mozilla Public License v2.0
 
 This is a collection of scripts that I use to manage my zfs setup at home.
 

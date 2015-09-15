@@ -105,6 +105,12 @@ class ParameterUtility:
         # Pool name
         self._pool_name = ""
 
+        # Minimum number of snapshots to keep
+        self._minimum_queue_size = 1000
+
+        # Ignore the minimum queue size
+        self._flush_queue = False
+
     def get_filesystem_type(self):
         return self._fstype
 
@@ -129,6 +135,18 @@ class ParameterUtility:
     def set_force(self, flag):
         self._force = flag
 
+    def set_minimum_queue_size(self, size):
+        self._minimum_queue_size = size
+
+    def get_minimum_queue_size(self):
+        return self._minimum_queue_size
+
+    def set_flush_queue(self, value):
+        self._flush_queue = value
+
+    def should_flush_queue(self):
+        return self._flush_queue
+
     # Checks parameters and running user
     def parse_parameters(self):
         user = check_output(["whoami"], universal_newlines=True).strip()
@@ -145,6 +163,10 @@ class ParameterUtility:
                 # Sets the force flag
                 if arguments[i] == "-f":
                     self.set_force(True)
+
+                # Flush Queue [Ignores the minimum queue size]
+                if arguments[i] == "-i":
+                    self.set_flush_queue(True)
 
                 # Sets the type of snapshots we will be cleaning (zfs or btrfs)
                 if arguments[i] == "-t":
@@ -173,6 +195,13 @@ class ParameterUtility:
                         self.set_tag(arguments[i+1])
                     except IndexError:
                         Tools.die("No tag was passed to -l")
+
+                # Sets the minimum number of snapshots to keep
+                elif arguments[i] == "-m":
+                    try:
+                        self.set_minimum_queue_size(int(arguments[i+1]))
+                    except IndexError:
+                        Tools.die("No minimum queue size was passed to -m")
 
                 # Displays the help/usage message
                 elif arguments[i] == "-h":
@@ -208,6 +237,10 @@ class Tools:
         print("# clean_snapshots -f -p <pool> -t btrfs\n")
         print("Cleans target pool not asking for confirmation with a slice date of <date>:")
         print("# clean_snapshots -f -p <pool> -t btrfs -d <date>\n")
+        print("Cleans target pool asking for confirmation and sets minimum number of snapshots to keep:")
+        print("# clean_snapshots -p <pool> -t zfs -m 1000\n")
+        print("Cleans target pool asking formation and ignores minimum number of snapshots to keep (default):")
+        print("# clean_snapshots -p <pool> -t zfs -i\n")
 
 # Provides date managing tools
 class DateManager:
@@ -307,7 +340,28 @@ class FSManager:
 
     # Checks all the snapshots in the queue and if older adds them to our deletion queue
     def check_snapshots(self):
+        snapshots_queue_size = len(self.snapshots)
+        minimum_queue_size = paramUtil.get_minimum_queue_size()
+        maximum_amount_to_remove = len(self.snapshots) - paramUtil.get_minimum_queue_size()
+
+        # Print the snapshots that will be removed
+        if not paramUtil.should_flush_queue():
+            if minimum_queue_size >= snapshots_queue_size:
+                print("Current Number of Snapshots: " + str(snapshots_queue_size))
+                print("Minimum Number of Snapshots to Keep: " + str(minimum_queue_size) + "\n")
+                print("No snapshots will be removed since you are still within the "
+                      "minimum amount of snapshots to keep limit.")
+                exit(0)
+
         for snap in self.snapshots:
+            snapshots_size = len(self.snapshots)
+
+            # Make sure that we only add snapshots to the removal queue up to our maximum
+            if not paramUtil.should_flush_queue():
+                if self.get_queue_size() >= maximum_amount_to_remove:
+                    # We done ;D
+                    return
+
             self.slicer(snap)
 
     # Removes the target snapshot
@@ -354,8 +408,8 @@ class FSManager:
     def get_queue(self):
         return self.queue
 
-    # Returns the length of the queue
-    def get_queue_length(self):
+    # Returns the queue size
+    def get_queue_size(self):
         return len(self.queue)
 
     # Prints the snapshot removal queue
@@ -367,10 +421,6 @@ class FSManager:
             print(snap)
 
         print("")
-
-    # Returns the queue size
-    def get_queue_size(self):
-        return len(self.queue)
 
     # Adds a snapshot to our removal list if it passes the slice date
     def slicer(self, a_snap, date_split):

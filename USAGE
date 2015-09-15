@@ -51,6 +51,19 @@ that all have the tag "HOURLY", you can do the following:
 
 clean_snapshots -p tank -t zfs -d 2015-08-08-1500 -l HOURLY
 
+The cleaner will only remove snapshots if it is older than 30 days and also if you have more than 1000 snapshots
+by default. This is to ensure that if you don't backup for a long time, that your "old" snapshots don't get nuked.
+
+You can override the minimum amount of snapshots to keep by using the "-m" flag.
+Example: Keep a minimum of 400 snapshots regardless of age
+
+clean_snapshots -p tank -t zfs -m 400
+
+You can ignore the minimum amount of snapshots to keep by using the "-i" flag.
+This is basically the old behavior:
+
+clean_snapshots -p tank -t zfs -i
+
 ----------
 
 zfs_backup - This script automates the process of performing full and incremental backups

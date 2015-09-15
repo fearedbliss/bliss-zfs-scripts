@@ -7,7 +7,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 if [[ $# -eq 0 ]]; then
-	zfs list -t snapshot -H -s name -o name
+    zfs list -t snapshot -H -s name -o name
 else
-	zfs list -t snapshot -H -s name -o name | grep $1
+    zfs list -t snapshot -H -s name -o name | grep $1
 fi

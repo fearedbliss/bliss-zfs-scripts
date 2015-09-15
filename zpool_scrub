@@ -12,9 +12,9 @@
 
 ZPOOL="/sbin/zpool"
 
-if [[ -z ${1} ]]; then
+if [[ -z "${1}" ]]; then
     echo "You haven't passed a pool name. Exiting."
     exit
 fi
 
-${ZPOOL} scrub ${1}
+"${ZPOOL}" scrub "${1}"

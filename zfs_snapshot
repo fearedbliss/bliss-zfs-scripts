@@ -17,18 +17,18 @@ fi
 # Get the date so that we can have a stable "seconds" count.
 # This will prevent the seconds from being off by a few in between
 # different snapshots.
-_DATE=$(date +%F-%H%M-%S)
+_DATE="$(date +%F-%H%M-%S)"
 
 # A tag for our snapshots. We can use these tags to quickly label things as
 # HOURLY, DAILY, MONTHLY, YEARLY. Technically this tag can be anything you want.
 _TAG=$1
-_FULL_SNAPSHOT_NAME=${_DATE}-${_TAG}
+_FULL_SNAPSHOT_NAME="${_DATE}-${_TAG}"
 
 # Skip the first parameter since this is just the tag which is stable
 # across all of our dataset snapshot names.
 shift
 
 while [ "$1" ]; do
-    ${ZFS} snapshot $1@${_FULL_SNAPSHOT_NAME}
+    "${ZFS}" snapshot $1@"${_FULL_SNAPSHOT_NAME}"
     shift
 done
