@@ -1,3 +1,36 @@
+3.0.0
+------
+zfs_backup:
+    Breaking Change.
+
+    - The zfs backup script now keeps the pool name when backing it up to the remote pool.
+    Example:
+
+    Dataset to backup: tank/gentoo/root
+    Backup Pool: backup
+
+    "tank/gentoo/root" will be stored on "backup/tank/gentoo/root".
+
+    Since this is a breaking change, you will need to 'zfs rename' your old dataset to the new location.
+    All snapshots already taken will automatically inherit the new location.
+
+    Due note, for this to work, you need to have created the disjointed part (or container-base part) of the dataset
+    at the backup pool.
+
+    If you try to backup: backup/tank/gentoo/root but "tank" doesnt exist, it will fail. It will recursively work downward
+    but after it has a safe-existing starting point.
+
+    If you currently have:
+
+    backup/
+
+    and you want to backup: tank/gentoo/root
+
+    then you need to create "tank", and then you can recursively send everything else downward as usual.
+
+    zfs create backup/tank
+    zfs_backup -b backup -d tank/gentoo/root
+
 2.6.0
 ------
 clean_snapshots:

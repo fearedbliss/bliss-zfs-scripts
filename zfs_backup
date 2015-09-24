@@ -128,23 +128,15 @@ class Backup:
     def get_filtered_snapshots(self, dataset):
         return self.get_snapshots(dataset, True)
 
-    # Formats the name by changing the dataset to be located at the target pool
-    # Example: "tank/gentoo/root" with a target pool of "backup" becomes "backup/gentoo/root"
-    def format_name(self, dataset, target_pool):
-        dataset_values = dataset.split("/")
-
-        target_name = ""
-
-        for value in dataset_values[1:]:
-            target_name += "/" + value
-
-        return target_pool + target_name
-
+    # Changes a backup dataset name to the corresponding source dataset equivalent
+    # Example: backup/tank/gentoo/root -> tank/gentoo/root
     def format_to_source(self, dataset):
-        return self.format_name(dataset, self.source_pool)
+        return dataset.partition("/")[2]
 
+    # Changes a backup dataset name to the corresponding source dataset equivalent
+    # Example: tank/gentoo/root -> backup/tank/gentoo/root
     def format_to_backup(self, dataset):
-        return self.format_name(dataset, self.backup_pool)
+        return self.backup_pool + "/" + dataset
 
     # Finds to see if a common snapshot exists between two datasets in both pools.
     # This is used to perform an incremental backup.
@@ -166,8 +158,11 @@ class Backup:
         source_pool_snapshots = self.get_snapshots(self.dataset, False)
         source_pool_snapshots_length = len(source_pool_snapshots)
 
+        # Sets the location of the target dataset name on the backup pool
+        self.backup_pool_dataset_target = self.format_to_backup(self.dataset)
+
         # Retrieve the snapshots that are located in the backup pool for this dataset
-        backup_pool_snapshots = self.get_snapshots(self.format_to_backup(self.dataset), False)
+        backup_pool_snapshots = self.get_snapshots(self.backup_pool_dataset_target, False)
         backup_pool_snapshots_length = len(backup_pool_snapshots)
 
         if self.tag:
@@ -203,25 +198,27 @@ class Backup:
 
         # If one or more snapshots exist in the source pool, but no backups exist in the target pool [ full backup ]
         if snapshots_length > 0 and backup_pool_snapshots_length == 0:
-            print("No snapshots exist in the backup pool. Attempting to send a full backup of: " + final_snapshot + "\n")
-            final_cmd = zfs_cmd + ' send -R ' + final_snapshot + ' | ' + zfs_cmd + ' recv -dvF ' + self.backup_pool
+            print("No snapshots exist in the backup pool for this dataset.\n")
+            print("Attempting to send a full backup of: " + final_snapshot + " -> " + self.format_to_backup(final_snapshot) + "\n")
+            final_cmd = zfs_cmd + ' send -R ' + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
 
         # If one or more snapshots exist in the source pool, and at least one snapshot exists in the backup pool [ incremental ]
         elif snapshots_length > 0 and backup_pool_snapshots_length > 0:
             print("Attempting to do an incremental backup ...\n")
 
             backup_pool_last_snapshot = backup_pool_snapshots[backup_pool_snapshots_length - 1]
+            backup_pool_snapshot_target = self.format_to_backup(final_snapshot)
             common_link = self.format_to_source(backup_pool_last_snapshot)
 
             # Are we already up to date?
-            if self.format_to_backup(final_snapshot) == backup_pool_last_snapshot:
+            if backup_pool_snapshot_target == backup_pool_last_snapshot:
                 print(self.dataset + " is already up to date!\n")
                 quit()
             # The last snapshot in the backup pool needs to be available in the source pool
             # so that we can use that as the starting point for the incremental backup.
             elif self.contains_common(backup_pool_last_snapshot, source_pool_snapshots):
-                print("Incrementing: " + backup_pool_last_snapshot + " -> " + self.format_to_backup(final_snapshot) + "\n")
-                final_cmd = zfs_cmd + ' send -i ' + common_link + " " + final_snapshot + ' | ' + zfs_cmd + ' recv -dvF ' + self.backup_pool
+                print("Incrementing: " + backup_pool_last_snapshot + " -> " + backup_pool_snapshot_target + "\n")
+                final_cmd = zfs_cmd + ' send -i ' + common_link + " " + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
             else:
                 print("No common link found. Unable to do an incremental backup!\n")
                 quit()
@@ -240,6 +237,7 @@ class Backup:
                 Tools.die("Invalid Option. Exiting.")
 
         call(final_cmd, shell=True)
+
 if __name__ == "__main__":
     backup = Backup()
     backup.welcome()
