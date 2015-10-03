@@ -11,9 +11,11 @@ LABEL="$1"
 
 # Backup the following datasets into the 'backup' pool
 if [[ ! -z "${LABEL}" ]]; then
+    "${SPATH}"/zfs_backup -f -b backup -d boot/gentoo -l "${LABEL}"
     "${SPATH}"/zfs_backup -f -b backup -d tank/gentoo/root -l "${LABEL}"
     "${SPATH}"/zfs_backup -f -b backup -d tank/gentoo/home -l "${LABEL}"
 else
+    "${SPATH}"/zfs_backup -f -b backup -d boot/gentoo
     "${SPATH}"/zfs_backup -f -b backup -d tank/gentoo/root
     "${SPATH}"/zfs_backup -f -b backup -d tank/gentoo/home
-fi
+fi 
