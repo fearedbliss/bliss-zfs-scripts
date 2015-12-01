@@ -239,7 +239,7 @@ class Tools:
         print("# clean_snapshots -f -p <pool> -t btrfs -d <date>\n")
         print("Cleans target pool asking for confirmation and sets minimum number of snapshots to keep:")
         print("# clean_snapshots -p <pool> -t zfs -m 1000\n")
-        print("Cleans target pool asking formation and ignores minimum number of snapshots to keep (default):")
+        print("Cleans target pool asking for confirmation and ignores minimum number of snapshots to keep (default):")
         print("# clean_snapshots -p <pool> -t zfs -i\n")
 
 # Provides date managing tools
