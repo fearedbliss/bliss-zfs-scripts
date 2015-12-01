@@ -4,11 +4,11 @@ This is an example crontab. I will use mine as an example:
 00 05 * * 00 /usr/local/sbin/zpool_scrub tank
 
 # Creates snapshots during different time periods for your datasets
-00 * * * * /usr/local/sbin/tank_snapshot HOURLY
-00 00 * * * /usr/local/sbin/tank_snapshot DAILY
-00 00 * * 00 /usr/local/sbin/tank_snapshot WEEKLY
-00 00 01 * * /usr/local/sbin/tank_snapshot MONTHLY
-00 00 01 01 * /usr/local/sbin/tank_snapshot YEARLY
+00 * * * * /usr/local/sbin/tank_snapshot HOURLY 2>&1 > /dev/null
+00 00 * * * /usr/local/sbin/tank_snapshot DAILY 2>&1 > /dev/null
+00 00 * * 00 /usr/local/sbin/tank_snapshot WEEKLY 2>&1 /dev/null
+00 00 01 * * /usr/local/sbin/tank_snapshot MONTHLY 2>&1 > /dev/null
+00 00 01 01 * /usr/local/sbin/tank_snapshot YEARLY 2>&1 > /dev/null
 
 # Check the pool health twice a day
 00 00,12 * * * /usr/local/sbin/check_zfs_pool

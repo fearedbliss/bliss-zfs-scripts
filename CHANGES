@@ -1,3 +1,22 @@
+3.0.1
+------
+clean_snapshots:
+    - Fixed bug where similarly named pool snapshots were being caught in the parsing.
+
+      Example:
+      clean_snapshots -p boot -t zfs
+
+      should only return snapshots from the 'boot' pool such as:
+
+      boot/gentoo
+
+      However, it was also catching things such as:
+
+      backup/boot/gentoo
+
+- Added silencing endings to some entries in the EXAMPLE file so that it doesn't
+  spam local mail.
+
 3.0.0
 ------
 zfs_backup:

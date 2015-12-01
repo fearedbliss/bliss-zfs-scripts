@@ -549,7 +549,7 @@ class ZfsManager(FSManager):
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):
-        cmd = zfs_cmd + ' list -t snapshot -H -o name -s name | grep ' + self.pool
+        cmd = zfs_cmd + ' list -t snapshot -H -o name -s name | grep ^' + self.pool + '/'
         super().get_pool_snapshots(cmd)
 
 # Provides btrfs specific attributes that are required to clean btrfs snapshots
