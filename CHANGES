@@ -1,3 +1,11 @@
+3.0.2
+------
+tank_backup:
+    - The script will no longer pass the "-f" flag. Manual confirmation is required before sending the backup.
+      You can add the "-f" flag back manually if you wish.
+
+- Moved the scripts into the 'scripts/' folder so that it is easier to copy the files into your desired location.
+
 3.0.1
 ------
 clean_snapshots:
