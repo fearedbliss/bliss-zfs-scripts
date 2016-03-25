@@ -9,13 +9,20 @@
 SPATH="/usr/local/sbin"
 LABEL="$1"
 
-# Backup the following datasets into the 'backup' pool
-if [[ ! -z "${LABEL}" ]]; then
-    "${SPATH}"/zfs_backup -b backup -d boot/gentoo -l "${LABEL}"
-    "${SPATH}"/zfs_backup -b backup -d tank/gentoo/root -l "${LABEL}"
-    "${SPATH}"/zfs_backup -b backup -d tank/gentoo/home -l "${LABEL}"
-else
-    "${SPATH}"/zfs_backup -b backup -d boot/gentoo
-    "${SPATH}"/zfs_backup -b backup -d tank/gentoo/root
-    "${SPATH}"/zfs_backup -b backup -d tank/gentoo/home
+_BACKUP_POOL="backup"
+
+_DATASETS=(
+    "boot/gentoo"
+    "tank/gentoo/root"
+    "tank/gentoo/home"
+)
+
+if [[ -z "${LABEL}" ]]; then
+    echo "You must pass a label in order to start a backup."
+    exit
 fi
+
+# Backup the following datasets into the 'backup' pool
+for i in "${_DATASETS[@]}"; do
+    "${SPATH}"/zfs_backup -f -b "${_BACKUP_POOL}" -d "${i}" -l "${LABEL}"
+done

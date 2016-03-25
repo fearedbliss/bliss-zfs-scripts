@@ -1,3 +1,29 @@
+3.1.0
+------
+tank_backup:
+    - Improved the script so there is less duplication of commands
+    - The script now requires the user to specify a label
+    - The script will again no longer ask for confirmation
+
+zfs_backup:
+    - The label passed into the zfs backup script now strictly checks the regex.
+      This means that if you have a label called "HOURLY" and you just pass  "L",
+      that won't match. It needs to be the exact label (case-sensitive)
+
+    - Fixed an issue where the initial send of a "full backup" stream would not
+      create the needed parent datasets recursively.
+
+    - Fixed an issue where all the initial datasets of a zfs pool would be sent before
+      an incremental upgrade was performed. This caused unnecessary writes and slowed down
+      the backup process.
+
+clean_snapshots:
+    - Introduced a new flag: -s
+      This flag will allow you to toggle whether or not you want to see the snapshots that will be removed.
+      The default now is that it won't show you what will be removed, but only show the count.
+
+    - Added flag documentation to -h and cleaned the documentation up a bit.
+
 3.0.2
 ------
 tank_backup:

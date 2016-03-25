@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2013-2015 Jonathan Vasquez <jvasquez1011@gmail.com>
+# Copyright 2013-2016 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -63,7 +63,8 @@ class Cleaner:
 
         # Print the snapshots that will be removed
         if self.fs_manager.queue:
-            self.fs_manager.print_queue()
+            if paramUtil.should_show_removals():
+                self.fs_manager.print_queue()
 
             print("Amount of Snapshots to Remove: " + str(self.fs_manager.get_queue_size()))
             print("")
@@ -111,6 +112,9 @@ class ParameterUtility:
         # Ignore the minimum queue size
         self._flush_queue = False
 
+        # Show snapshots that will be deleted
+        self._show_pending_removals = False
+
     def get_filesystem_type(self):
         return self._fstype
 
@@ -146,6 +150,12 @@ class ParameterUtility:
 
     def should_flush_queue(self):
         return self._flush_queue
+
+    def set_show_removals(self, value):
+        self._show_pending_removals = value
+
+    def should_show_removals(self):
+        return self._show_pending_removals
 
     # Checks parameters and running user
     def parse_parameters(self):
@@ -207,6 +217,10 @@ class ParameterUtility:
                 elif arguments[i] == "-h":
                     Tools.print_usage()
                     quit(0)
+
+                # Shows snapshots that will be removed
+                elif arguments[i] == "-s":
+                    self.set_show_removals(True)
         else:
             Tools.print_usage()
             Tools.die("You must pass the pool you want to clean. See the above examples.")
@@ -227,6 +241,20 @@ class Tools:
     @classmethod
     # Prints usage information
     def print_usage(cls):
+        print("Flags")
+        print("=====")
+        print("-d       - The slice date that you want to use as your end point for snapshot deletions")
+        print("-f       - Should confirmation be prompted before deleting the snapshots? Used primarily for cron")
+        print("-h       - Displays this help message")
+        print("-i       - Ignore minimum number of snapshots")
+        print("-l       - The label of the snapshots that should be cleaned (supports regex)")
+        print("-m       - The minimum amount of snapshots to keep")
+        print("-p       - The pool you want to clean")
+        print("-s       - Show snapshots that will be removed")
+        print("-t       - The type of filesystem that should be cleaned")
+        print("")
+        print("Examples")
+        print("=====")
         print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
         print("# clean_snapshots -p <pool> -t zfs \n")
         print("Cleans target pool asking for confirmation with a slice date of <date>:")
@@ -235,12 +263,12 @@ class Tools:
         print("# clean_snapshots -p <pool> -t zfs -d <date> -l <tag>\n")
         print("Cleans target pool not asking for confirmation with a default slice date of 30 days prior to today:")
         print("# clean_snapshots -f -p <pool> -t btrfs\n")
-        print("Cleans target pool not asking for confirmation with a slice date of <date>:")
-        print("# clean_snapshots -f -p <pool> -t btrfs -d <date>\n")
-        print("Cleans target pool asking for confirmation and sets minimum number of snapshots to keep:")
-        print("# clean_snapshots -p <pool> -t zfs -m 1000\n")
-        print("Cleans target pool asking for confirmation and ignores minimum number of snapshots to keep (default):")
-        print("# clean_snapshots -p <pool> -t zfs -i\n")
+        print("Cleans target pool asking for confirmation and sets a minimum number of snapshots to keep (default 1000):")
+        print("# clean_snapshots -p <pool> -t zfs -m 2000\n")
+        print("Cleans target pool asking for confirmation and ignores minimum number of snapshots to keep:")
+        print("# clean_snapshots -p <pool> -t zfs -i")
+        print("")
+
 
 # Provides date managing tools
 class DateManager:

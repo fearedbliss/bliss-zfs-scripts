@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2013-2015 Jonathan Vasquez <jvasquez1011@gmail.com>
+# Copyright 2013-2016 Jonathan Vasquez <jvasquez1011@gmail.com>
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -115,7 +115,7 @@ class Backup:
         common_cmd = zfs_cmd + ' list -H -t snapshot -o name -s name | grep ' + dataset
 
         if use_tag == True and self.tag:
-            cmd = common_cmd + ' | grep ' + self.tag
+            cmd = common_cmd + ' | grep -E ' + self.tag + '$'
         else:
             cmd = common_cmd
 
@@ -151,6 +151,19 @@ class Backup:
         # Not Found
         else:
             return False
+
+    # Checks to see if the dataset has the required parent datasets
+    # in existence before creating, and if it doesn't, it will create them.
+    def create_dataset_tree_if_needed(self, dataset):
+        parent_dataset = dataset.rpartition("/")
+
+        cmd = zfs_cmd + ' list -H -o name -s name | grep -E -q ^' + parent_dataset[0] + '$'
+
+        if call(cmd, shell=True):
+            create_cmd = zfs_cmd + ' create -p ' + parent_dataset[0]
+
+            if call(create_cmd, shell=True):
+                Tools.die("There was an error creating the target backup dataset: " + parent_dataset[0])
 
     # Main
     def start(self):
@@ -200,7 +213,13 @@ class Backup:
         if snapshots_length > 0 and backup_pool_snapshots_length == 0:
             print("No snapshots exist in the backup pool for this dataset.\n")
             print("Attempting to send a full backup of: " + final_snapshot + " -> " + self.format_to_backup(final_snapshot) + "\n")
-            final_cmd = zfs_cmd + ' send -R ' + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
+
+            # Let's first check to see that we have the dataset hierarchy in existence and create it if it doesn't.
+            self.create_dataset_tree_if_needed(self.backup_pool_dataset_target)
+
+            # Only send a full backup of that specific snapshot. We won't use -R because we don't
+            # want to also send all of the preceeding snapshots. This saves time and writes.
+            final_cmd = zfs_cmd + ' send -p ' + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
 
         # If one or more snapshots exist in the source pool, and at least one snapshot exists in the backup pool [ incremental ]
         elif snapshots_length > 0 and backup_pool_snapshots_length > 0:
@@ -237,6 +256,7 @@ class Backup:
                 Tools.die("Invalid Option. Exiting.")
 
         call(final_cmd, shell=True)
+        print("")
 
 if __name__ == "__main__":
     backup = Backup()
