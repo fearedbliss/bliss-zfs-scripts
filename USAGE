@@ -64,6 +64,20 @@ This is basically the old behavior:
 
 clean_snapshots -p tank -t zfs -i
 
+If you have specific snapshots that you don't want to remove, you can add
+each snapshot name (whatever you see in zfs list -t snapshot) on its own line
+to a file. After that you can pass that file name to the cleaner with the "-e"
+flag.
+
+clean_snapshots -p tank -t zfs -e excluded_snapshots
+
+If you want to see what snapshots will be removed, you can use the "-s" flag,
+and to see the snapshots that will be excluded, you can use the "-x" flag.
+The snapshots displayed for the excluded list if any are for snapshots that
+pertain to that specific pool.
+
+clean_snapshots -p tank -t zfs -e excluded_snapshots -s -x
+
 ----------
 
 zfs_backup - This script automates the process of performing full and incremental backups

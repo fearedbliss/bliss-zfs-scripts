@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Copyright 2013-2017 Jonathan Vasquez <jon@xyinn.org>
-# 
+#
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
 #
@@ -36,10 +36,14 @@ btrfs_cmd = "/sbin/btrfs"
 # Enables the user to efficiently clean the snapshots in their pool.
 class Cleaner:
     def setup_fs_manager(self):
+         # Make sure the following parameters were set before we continue
         fstype = paramUtil.get_filesystem_type()
 
         if not fstype:
             Tools.die("No filesystem type was specified.")
+
+        if not paramUtil.get_pool_name():
+            Tools.die("No pool name was specified.")
 
         if fstype == "zfs":
             self.fs_manager = ZfsManager()
@@ -66,6 +70,10 @@ class Cleaner:
         # Sets up the filesystem manager, and a few other things such as time slices.
         self.setup_fs_manager()
 
+        # Retrieves the snapshots to exclude if needed.
+        if paramUtil.get_exclude_filename():
+            self.fs_manager.populate_excluded_snapshots_set()
+
         print("Today's Date : " + DateManager.date_today)
         print("Slice Date   : " + DateManager.date_slice)
         print("Pool         : " + self.fs_manager.pool)
@@ -75,15 +83,20 @@ class Cleaner:
         self.fs_manager.get_pool_snapshots()
 
         # Check each snapshot and if it is older than the slice date,
-        # add it to our removal queue.
+        # add it to our removal queue. Snapshots that are listed in the exclude
+        # file will be excluded and will not be added to the removal queue.
         self.fs_manager.check_snapshots()
 
-        # Print the snapshots that will be removed
+        # Print the snapshots that will be removed/excluded
         if self.fs_manager.queue:
             if paramUtil.should_show_removals():
                 self.fs_manager.print_queue()
 
+            if paramUtil.should_show_excluded():
+                self.fs_manager.print_excluded_queue()
+
             print("Amount of Snapshots to Remove: " + str(self.fs_manager.get_queue_size()))
+            print("Amount of Snapshots to Exclude: " + str(self.fs_manager.get_excluded_queue_size()))
             print("")
 
         if self.fs_manager.queue:
@@ -132,6 +145,12 @@ class ParameterUtility:
         # Show snapshots that will be deleted
         self._show_pending_removals = False
 
+        # Show excluded snapshots
+        self._show_excluded_snapshots = False
+
+        # Exclude snapshots in this file
+        self._exclude_filename = ""
+
     def get_filesystem_type(self):
         return self._fstype
 
@@ -143,6 +162,9 @@ class ParameterUtility:
 
     def is_force(self):
         return self._force
+
+    def get_exclude_filename(self):
+        return self._exclude_filename
 
     def set_filesystem_type(self, fstype):
         self._fstype = fstype
@@ -171,8 +193,17 @@ class ParameterUtility:
     def set_show_removals(self, value):
         self._show_pending_removals = value
 
+    def set_show_excluded(self, value):
+        self._show_excluded_snapshots = value
+
     def should_show_removals(self):
         return self._show_pending_removals
+
+    def should_show_excluded(self):
+        return self._show_excluded_snapshots
+
+    def set_exclude_filename(self, filename):
+        self._exclude_filename = filename
 
     # Checks parameters and running user
     def parse_parameters(self):
@@ -183,7 +214,7 @@ class ParameterUtility:
 
         arguments = sys.argv[1:]
 
-        # clean_snapshots -f -p <pool> -t <fstype> -d <date> -l <tag label>
+        # clean_snapshots -f -p <pool> -t <fstype> -d <date> -l <tag label> -e <snapshot exclude file>
         # clean_snapshots -f -p tank -t zfs -d 2014-06-09-0000 -l HOURLY
         if len(arguments) >= 1:
             for i in range(len(arguments)):
@@ -238,6 +269,20 @@ class ParameterUtility:
                 # Shows snapshots that will be removed
                 elif arguments[i] == "-s":
                     self.set_show_removals(True)
+
+                # Shows snapshots that will be excluded
+                elif arguments[i] == "-x":
+                    self.set_show_excluded(True)
+
+                # Sets exclude filename
+                elif arguments[i] == "-e":
+                    try:
+                        if not os.path.exists(arguments[i+1]):
+                            Tools.die("The specified exclude file doesn't exist: " + arguments[i+1])
+
+                        self.set_exclude_filename(arguments[i+1])
+                    except IndexError:
+                        Tools.die("Exclude filename was not set")
         else:
             Tools.print_usage()
             Tools.die("You must pass the pool you want to clean. See the above examples.")
@@ -268,7 +313,9 @@ class Tools:
         print("-m       - The minimum amount of snapshots to keep")
         print("-p       - The pool you want to clean")
         print("-s       - Show snapshots that will be removed")
+        print("-x       - Show snapshots that will be excluded")
         print("-t       - The type of filesystem that should be cleaned")
+        print("-e       - Excludes the list of snapshots in this file (one snapshot per line)")
         print("")
         print("Examples")
         print("=====")
@@ -283,9 +330,10 @@ class Tools:
         print("Cleans target pool asking for confirmation and sets a minimum number of snapshots to keep (default 1000):")
         print("# clean_snapshots -p <pool> -t zfs -m 2000\n")
         print("Cleans target pool asking for confirmation and ignores minimum number of snapshots to keep:")
-        print("# clean_snapshots -p <pool> -t zfs -i")
+        print("# clean_snapshots -p <pool> -t zfs -i\n")
+        print("Excludes the snapshots in the file:")
+        print("# clean_snapshots -p <pool> -t zfs -e <file>")
         print("")
-
 
 # Provides date managing tools
 class DateManager:
@@ -383,6 +431,12 @@ class FSManager:
         # Tag
         self.tag = ""
 
+        # Full list of excluded snapshots (contains all the snapshots from our file)
+        self.excluded_snapshots_from_file = set()
+
+        # List of excluded snapshots (That are only related to this pool)
+        self.excluded_snapshots = set()
+
     # Checks all the snapshots in the queue and if older adds them to our deletion queue
     def check_snapshots(self):
         snapshots_queue_size = len(self.snapshots)
@@ -400,6 +454,11 @@ class FSManager:
 
         for snap in self.snapshots:
             snapshots_size = len(self.snapshots)
+
+            # If the snapshot is in our exclude list, skip it.
+            if self.should_exclude_snapshot(snap):
+                self.excluded_snapshots.add(snap)
+                continue
 
             # Make sure that we only add snapshots to the removal queue up to our maximum
             if not paramUtil.should_flush_queue():
@@ -457,13 +516,32 @@ class FSManager:
     def get_queue_size(self):
         return len(self.queue)
 
+    # Returns the size of the excluded snapshots queue
+    def get_excluded_queue_size(self):
+        return len(self.excluded_snapshots)
+
     # Prints the snapshot removal queue
     def print_queue(self):
-        print("Pending Removal: ")
+        print("These snapshots are PENDING REMOVAL: ")
         print("----------------")
 
-        for snap in self.queue:
-            print(snap)
+        if len(self.queue) == 0:
+            print("No snapshots will be removed.")
+        else:
+            for snap in self.queue:
+                print(snap)
+
+        print("")
+
+    def print_excluded_queue(self):
+        print("These snapshots are EXCLUDED from REMOVAL: ")
+        print("----------------")
+
+        if len(self.excluded_snapshots) == 0:
+            print("No snapshots are excluded.")
+        else:
+            for snap in self.excluded_snapshots:
+                print(snap)
 
         print("")
 
@@ -489,6 +567,19 @@ class FSManager:
                     if time <= DateManager.date_slice_time:
                     # Snapshot is the same day as today but is older or equal to the slice time.
                         self.add_to_queue(a_snap)
+
+    # Determines whether or not the given snapshot name should be excluded from removal
+    def should_exclude_snapshot(self, snapshot):
+        return snapshot in self.excluded_snapshots_from_file
+
+    # Retrieves the list of snapshots
+    def populate_excluded_snapshots_set(self):
+        try:
+            with open(paramUtil.get_exclude_filename(), "r") as exclude_list:
+                for snapshot_to_exclude in exclude_list:
+                    self.excluded_snapshots_from_file.add(snapshot_to_exclude.strip())
+        except Exception:
+            Tools.die("An error occurred while reading the file. Aborting.")
 
 # Provides zfs specific attributes that is required to clean zfs snapshots
 class ZfsManager(FSManager):
@@ -594,7 +685,7 @@ class ZfsManager(FSManager):
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):
-        cmd = zfs_cmd + ' list -t snapshot -H -o name -s name | grep ^' + self.pool + '/'
+        cmd = zfs_cmd + ' list -t snapshot -H -o name -s name | grep ^' + self.pool + '[@/]'
         super().get_pool_snapshots(cmd)
 
 # Provides btrfs specific attributes that are required to clean btrfs snapshots
