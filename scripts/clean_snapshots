@@ -102,14 +102,13 @@ class Cleaner:
         if self.fs_manager.queue:
             if not paramUtil.is_force():
                 choice = input("Do you want to remove the above snapshots? [y/N]: ")
-                print("")
 
                 # Remove the snapshots that are in the slicer
                 if choice == 'y' or choice == 'Y':
                     self.fs_manager.destroy_snapshots()
 
                 elif choice == 'n' or choice == 'N' or not choice:
-                    print("No snapshots will be removed. Exiting.")
+                    print("\nNo snapshots will be removed. Exiting.")
                     quit()
                 else:
                     Tools.die("Invalid Option. Exiting.")
@@ -138,6 +137,9 @@ class ParameterUtility:
 
         # Minimum number of snapshots to keep
         self._minimum_queue_size = 1000
+
+        # Number of snapshots to delete per buffer
+        self.batch_flush_point = -1
 
         # Ignore the minimum queue size
         self._flush_queue = False
@@ -205,6 +207,9 @@ class ParameterUtility:
     def set_exclude_filename(self, filename):
         self._exclude_filename = filename
 
+    def get_batch_flush_point(self):
+        return self.batch_flush_point
+
     # Checks parameters and running user
     def parse_parameters(self):
         user = check_output(["whoami"], universal_newlines=True).strip()
@@ -261,6 +266,12 @@ class ParameterUtility:
                     except IndexError:
                         Tools.die("No minimum queue size was passed to -m")
 
+                elif arguments[i] == "-n":
+                    try:
+                        self.batch_flush_point = int(arguments[i+1])
+                    except IndexError:
+                        Tools.die("No maximum number of snapshots to delete per buffer amount was passed to -n")
+
                 # Displays the help/usage message
                 elif arguments[i] == "-h":
                     Tools.print_usage()
@@ -316,11 +327,14 @@ class Tools:
         print("-x       - Show snapshots that will be excluded")
         print("-t       - The type of filesystem that should be cleaned")
         print("-e       - Excludes the list of snapshots in this file (one snapshot per line)")
+        print("-n       - Number of snapshots to delete per round")
         print("")
         print("Examples")
         print("=====")
         print("Cleans target pool asking for confirmation with a default slice date of 30 days prior to today:")
         print("# clean_snapshots -p <pool> -t zfs \n")
+        print("Cleans target pool while deleting 2000 snapshots at a time.")
+        print("# clean_snapshots -p <pool> -t zfs -n 2000\n")
         print("Cleans target pool asking for confirmation with a slice date of <date>:")
         print("# clean_snapshots -p <pool> -t zfs -d <date>\n")
         print("Cleans target pool asking for confirmation with a slice date of <date> and with a tag of <tag>:")
@@ -424,7 +438,10 @@ class FSManager:
 
         # List of snapshots that will be deleted
         self.queue = []
-
+        
+        # Number of snapshots deleted. Used for progress indicator.
+        self.deleted_snapshot_count = 0
+        
         # Pool
         self.pool = ""
 
@@ -587,10 +604,14 @@ class ZfsManager(FSManager):
         super().__init__()
         self.base_dataset = ""
         self.batch_of_snapshots = []
+        
+        # Remove 100 snapshots per buffer. This is to prevent us from reaching
+        # the ARG_MAX limits in shell/exec(). Having too high of a snapshot
+        # deleting amount seems to cause zfs to lock up in some cases.
+        self.batch_flush_point = paramUtil.get_batch_flush_point()
 
-        # Remove 5000 snapshots per buffer. This is to prevent us from reaching
-        # the ARG_MAX limits in shell/exec().
-        self.batch_flush_point = 5000
+        if self.batch_flush_point == -1:
+            self.batch_flush_point = 100
 
     def slicer(self, a_snap):
          # Left side = dataset, Right Side = date [0, 1]
@@ -608,12 +629,21 @@ class ZfsManager(FSManager):
     # Deletes all the snapshots currently in batch queue and clears out the queue for re-use
     def destroy_and_clear(self):
         self.destroy(self.return_prepared_list(self.batch_of_snapshots))
+        
+        self.deleted_snapshot_count = self.deleted_snapshot_count + len(self.batch_of_snapshots)
+        completed_percent = self.calculate_completion(self.deleted_snapshot_count, len(self.queue))
+        print("{0:3d}% Completed. [".format(completed_percent) + str(self.deleted_snapshot_count) + "/" + str(len(self.queue)) + "]" + " @ [" + self.base_dataset + "]")
+        
         self.batch_of_snapshots.clear()
 
+    # Returns the percent completion of the snapshot removal
+    def calculate_completion(self, number_of_deleted_snapshots, total_snapshots):
+        return int(round((number_of_deleted_snapshots / total_snapshots) * 100))
+        
     # Destroys the prepared batch (Contains base dataset and a comma-delimited list of snapshot dates)
     def destroy(self, prepared_batch):
         cmd = zfs_cmd + ' destroy ' + prepared_batch
-        out = Tools.run(cmd)
+        Tools.run(cmd)
 
     def set_pool_info(self, pool):
         self.pool = pool
@@ -631,7 +661,7 @@ class ZfsManager(FSManager):
     # Sets the base dataset and adds the snapshot to the queue
     def set_base_and_queue(self, snapshot):
         self.base_dataset = self.get_snapshot_dataset(snapshot)
-        print("Cleaning snapshots for " + self.base_dataset + "...")
+        print("\nCleaning snapshots for " + self.base_dataset + "...\n")
         self.batch_of_snapshots.append(snapshot)
 
     # Prepares a list of snapshots to be deleted starting with the base dataset name
@@ -641,7 +671,7 @@ class ZfsManager(FSManager):
 
     # Builds the batch list for the snapshots we should clean
     # and calls the functions necessary to actually delete the snapshots
-    def build_batch_and_clean(self):
+    def build_batch_and_clean(self):        
         for i in range(len(self.queue)):
             if len(self.batch_of_snapshots) != self.batch_flush_point:
                 if len(self.batch_of_snapshots) == 0:
@@ -679,9 +709,9 @@ class ZfsManager(FSManager):
             self.destroy_and_clear()
 
             if len(self.batch_of_snapshots) == 0:
-                print("The pool has been successfully cleaned!")
+                print("\nThe pool has been successfully cleaned!")
             else:
-                Tools.die("There was an error cleaning the pool!")
+                Tools.die("\nThere was an error cleaning the pool!")
 
     # Retrieves all the snapshots for the given pool
     def get_pool_snapshots(self):

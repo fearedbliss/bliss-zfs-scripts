@@ -78,6 +78,10 @@ pertain to that specific pool.
 
 clean_snapshots -p tank -t zfs -e excluded_snapshots -s -x
 
+If you want to delete more or less snapshots in one loop of the cleaner, you can use
+the "-n" flag:
+
+clean_snapshots -p tank -t zfs -n 500
 ----------
 
 zfs_backup - This script automates the process of performing full and incremental backups
