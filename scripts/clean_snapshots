@@ -472,11 +472,6 @@ class FSManager:
         for snap in self.snapshots:
             snapshots_size = len(self.snapshots)
 
-            # If the snapshot is in our exclude list, skip it.
-            if self.should_exclude_snapshot(snap):
-                self.excluded_snapshots.add(snap)
-                continue
-
             # Make sure that we only add snapshots to the removal queue up to our maximum
             if not paramUtil.should_flush_queue():
                 if self.get_queue_size() >= maximum_amount_to_remove:
@@ -569,21 +564,30 @@ class FSManager:
         day = int(date_split[2])
         time = int(date_split[3])
 
+        should_add_to_queue = False
+
         if year < DateManager.date_slice_year:
             # Snapshot is older by at least a year
-            self.add_to_queue(a_snap)
+            should_add_to_queue = True
         elif year == DateManager.date_slice_year:
             if month < DateManager.date_slice_month:
                 # Snapshot is older by at least a month
-                self.add_to_queue(a_snap)
+                should_add_to_queue = True
             elif month == DateManager.date_slice_month:
                 if day < DateManager.date_slice_day:
                     # Snapshot is older by at least a day
-                    self.add_to_queue(a_snap)
+                    should_add_to_queue = True
                 elif day == DateManager.date_slice_day:
                     if time <= DateManager.date_slice_time:
                     # Snapshot is the same day as today but is older or equal to the slice time.
-                        self.add_to_queue(a_snap)
+                        should_add_to_queue = True
+
+        if should_add_to_queue:
+           # If the snapshot is in our exclude list, skip it.
+            if self.should_exclude_snapshot(a_snap):
+                self.excluded_snapshots.add(a_snap)
+            else:
+                self.add_to_queue(a_snap)
 
     # Determines whether or not the given snapshot name should be excluded from removal
     def should_exclude_snapshot(self, snapshot):
