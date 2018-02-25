@@ -129,7 +129,7 @@ class Backup:
     def get_snapshots(self, dataset, use_tag):
         #print("Getting snapshots for " + dataset + " ...")
 
-        common_cmd = zfs_cmd + ' list -H -t snapshot -o name -s name | grep ' + dataset
+        common_cmd = zfs_cmd + ' list -H -t snapshot -o name -s name | grep -E "^' + dataset + '"'
 
         if use_tag == True and self.tag:
             cmd = common_cmd + ' | grep -E ' + self.tag + '$'
