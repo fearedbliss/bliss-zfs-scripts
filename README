@@ -1,8 +1,6 @@
-Bliss ZFS Scripts 3.3.2
+Bliss ZFS Scripts 3.4.0
 Jonathan Vasquez <jon@xyinn.org>
-2-BSD
-
-Designed for Gentoo Linux
+GPLv3+
 
 This is a collection of scripts that I use to manage my zfs setup at home.
 
