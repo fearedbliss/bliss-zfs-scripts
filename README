@@ -1,14 +1,16 @@
-Bliss ZFS Scripts 3.4.0
+Bliss ZFS Scripts 3.5.0
 Jonathan Vasquez <jon@xyinn.org>
-GPLv3+
+Apache License 2.0
 
 This is a collection of scripts that I use to manage my zfs setup at home.
+Customize the scripts to your needs!
 
 1) zfs_snapshot        - Takes a snapshot of a dataset
 2) clean_snapshots     - Deletes snapshots older than 30 days or older than a date set by the user
 3) check_zfs_pool      - Checks the pools health. If degraded, it sends you an email
 4) zpool_scrub         - Scrubs the pool
 5) zfs_backup          - Backs up your datasets automatically (replication to another pool)
+6) system_backup       - Tars up your root filesystme, excluding some directories, and then compresses it with pxz.
 
 --
 Example scripts that would be called from your crontab

@@ -14,8 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ $# -eq 0 ]]; then
-    zfs list -t snapshot -H -s name -o name
-else
-    zfs list -t snapshot -H -s name -o name | grep $1
+if [[ -z $1 ]]; then
+	echo "No pool name passed in!"
+	exit 1
 fi
+
+pool="$1"
+exclude_file="/root/excluded_snapshots"
+clean_snapshots -t zfs -p ${pool} -e ${exclude_file} -x -i -d 2099-01-01-0000

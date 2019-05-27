@@ -1,0 +1,3 @@
+*.txt eol=lf
+*.ini eol=lf
+*.md eol=lf

@@ -14,8 +14,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ $# -eq 0 ]]; then
-    zfs list -t snapshot -H -s name -o name
-else
-    zfs list -t snapshot -H -s name -o name | grep $1
-fi
+listsnaps $(listsnaps | tail -n1 | cut -d "@" -f 2)
