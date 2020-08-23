@@ -7,6 +7,14 @@ Customize the scripts to your needs!
 
 1) zfs_snapshot        - Takes a snapshot of a dataset
 2) clean_snapshots     - Deletes snapshots older than 30 days or older than a date set by the user
+   NOTE: There is a completely new snapshot cleaner I wrote to replace this one that is written in Rust.
+         All future development for the snapshot cleaner will continue in Honeydew. I'm leaving the old
+         script in this repo so people can continue to use it, but it is recommend to switch to the new one.
+         The API is mostly the same as this one with some minor adjustments to the flags since some flags
+         are no longer necessary and thus I took the liberty to clean this up.
+
+         https://github.com/fearedbliss/Honeydew
+         
 3) check_zfs_pool      - Checks the pools health. If degraded, it sends you an email
 4) zpool_scrub         - Scrubs the pool
 5) zfs_backup          - Backs up your datasets automatically (replication to another pool)
