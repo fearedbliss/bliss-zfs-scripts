@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright (C) 2013-2020 Jonathan Vasquez <jon@xyinn.org>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Address
 EMAIL="root@localhost"
 
-MAIL="/usr/bin/mailx"
+MAIL="/usr/bin/mail"
 ZPOOL="/sbin/zpool"
 
 GOOD="all pools are healthy"
 RESULT="$(${ZPOOL} status -x)"
 
-if [[ ${RESULT} != ${GOOD} ]]; then
+if [ "${RESULT}" != "${GOOD}" ]; then
     echo -e "[ALERT] Your pool is DEGRADED.\n\nOutput:\n\n$(${ZPOOL} status)" |
     ${MAIL} -s "[ZFS] Status: DEGRADED" ${EMAIL}
 fi

@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright (C) 2013-2020 Jonathan Vasquez <jon@xyinn.org>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if [[ -z $1 ]]; then
+if [ -z "$1" ]; then
 	echo "No pool name passed in!"
 	exit 1
 fi
 
 pool="$1"
 exclude_file="/root/excluded_snapshots"
-clean_snapshots -t zfs -p ${pool} -e ${exclude_file} -x -i -d 2099-01-01-0000
+honeydew -p "${pool}" -e "${exclude_file}" -x -d 2099-01-01-0000-00 -i 500

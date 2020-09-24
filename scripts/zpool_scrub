@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright (C) 2013-2020 Jonathan Vasquez <jon@xyinn.org>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,10 +19,11 @@
 # Example: # zpool_scrub tank
 
 ZPOOL="/sbin/zpool"
+POOL="$1"
 
-if [[ -z "${1}" ]]; then
+if [ -z "${POOL}" ]; then
     echo "You haven't passed a pool name. Exiting."
-    exit
+    exit 1
 fi
 
-"${ZPOOL}" scrub "${1}"
+${ZPOOL} scrub "${POOL}"
