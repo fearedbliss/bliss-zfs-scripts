@@ -1,35 +1,63 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright © 2013-2022 Jonathan Vasquez <jon@xyinn.org>
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 
-SPATH="/usr/local/sbin"
+# Description: A wrapper script around "zfs_backup".
+
 LABEL="$1"
+SCRIPT_NAME="zfs_backup"
+SCRIPT_PATH="/usr/local/sbin"
+SCRIPT="${SCRIPT_PATH}/${SCRIPT_NAME}"
+BACKUP_POOL="backup"
 
-_BACKUP_POOL="backup"
+DATASETS="
+tank
+tank/home
+tank/system
+"
 
-_DATASETS=(
-    "tank/home"
-    "tank/system"
-)
-
-if [[ -z "${LABEL}" ]]; then
+if [ -z "${LABEL}" ]; then
     echo "You must pass a label in order to start a backup."
-    exit
+    exit 1
 fi
 
-# Backup the following datasets into the 'backup' pool
-for i in "${_DATASETS[@]}"; do
-    "${SPATH}"/zfs_backup -f -b "${_BACKUP_POOL}" -d "${i}" -l "${LABEL}"
+if [ ! -f "${SCRIPT}" ]; then
+    echo "The backup tool doesn't exist at: ${SCRIPT}. Aborting."
+    exit 1
+fi
+
+# Check if our pool is imported. We only care about the error code.
+zpool status ${BACKUP_POOL} > /dev/null 2>&1
+
+if [ $? -eq 1 ]; then
+    echo "The \"${BACKUP_POOL}\" pool is not imported! Aborting."
+    exit 1
+fi
+
+# Backup each dataset to our backup pool.
+for dataset in ${DATASETS}; do
+    "${SCRIPT}" -f -b "${BACKUP_POOL}" -d "${dataset}" -l "${LABEL}"
 done

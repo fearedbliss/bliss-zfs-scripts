@@ -1,42 +1,52 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright © 2013-2022 Jonathan Vasquez <jon@xyinn.org>
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 
 ZFS="/sbin/zfs"
 
-if [[ $# -le 1 ]]; then
-    echo "You must pass the time tag and the dataset you want to snapshot."
-    echo "Example: zfs_snapshot HOURLY tank/gentoo/root"
+if [ $# -le 1 ]; then
+    echo "You must pass the label and dataset to snapshot."
+    echo "Example: zfs_snapshot HOURLY tank/os"
     exit
 fi
 
 # Get the date so that we can have a stable "seconds" count.
 # This will prevent the seconds from being off by a few in between
-# different snapshots.
-_DATE="$(date +%F-%H%M-%S)"
+# different snapshots within our list.
+DATE="$(date +%F-%H%M-%S)"
 
-# A tag for our snapshots. We can use these tags to quickly label things as
-# HOURLY, DAILY, MONTHLY, YEARLY. Technically this tag can be anything you want.
-_TAG=$1
-_FULL_SNAPSHOT_NAME="${_DATE}-${_TAG}"
+# A label for our snapshots. We can use these labels to quickly label things as
+# HOURLY, DAILY, MONTHLY, YEARLY. The label can be whatever you want.
+LABEL="$1"
+FULL_SNAPSHOT_NAME="${DATE}-${LABEL}"
 
-# Skip the first parameter since this is just the tag which is stable
-# across all of our dataset snapshot names.
+# Skip the first parameter since the label is stable across all of our snapshots.
 shift
 
 while [ "$1" ]; do
-    "${ZFS}" snapshot $1@"${_FULL_SNAPSHOT_NAME}"
+    "${ZFS}" snapshot $1@"${FULL_SNAPSHOT_NAME}"
     shift
 done
