@@ -27,7 +27,7 @@
 
 # The parameter passed to this script will be the name of the pool that you want to scrub
 
-# Example: # zpool_scrub tank
+# Example: zpool_scrub tank
 
 ZPOOL="/sbin/zpool"
 POOL="$1"

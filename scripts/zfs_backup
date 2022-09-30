@@ -1,273 +1,29 @@
-#!/usr/bin/env python3
+#!/bin/sh
 
-# Copyright (C) 2013-2019 Jonathan Vasquez <jon@xyinn.org>
+# Copyright © 2013-2022 Jonathan Vasquez <jon@xyinn.org>
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
 
-import sys
-
-from subprocess import call
-from subprocess import check_output
-from subprocess import CalledProcessError
-
-# Interface: zfs_backup -b <backup pool> -d <dataset> [optional: -l <tag>]
-# Example  : zfs_backup -b backup -d tank/gentoo/root -l DAILY
-
-zpool_cmd = "/sbin/zpool"
-zfs_cmd = "/sbin/zfs"
-
-class Tools:
-    @classmethod
-     # Displays a message and quits with an error code of 1
-    def die(cls, message):
-        print(message)
-        quit(1)
-
-    @classmethod
-    # Runs a command and gets back the output
-    def run(cls, cmd):
-        return check_output(cmd, shell=True, universal_newlines=True).strip().split("\n")
-
-class Backup:
-    def __init__(self):
-        self.datasets = []
-        self.pools_to_check = []
-        self.source_pool = ""
-        self.backup_pool = ""
-        self.dataset = ""
-        self.force = ""
-        self.tag = ""
-
-    # Checks parameters and running user
-    def welcome(self):
-        user = check_output(["whoami"], universal_newlines=True).strip()
-
-        if user != "root":
-            Tools.die("This program must be ran as root")
-
-        arguments = sys.argv[1:]
-
-        # Sets up the parameters (backup pool, dataset, force)
-        if len(arguments) > 1:
-            for i in range(len(arguments)):
-                # Sets the force flag
-                if arguments[i] == "-f":
-                    self.force = 1
-
-                # Backup Pool
-                if arguments[i] == "-b":
-                    try:
-                        self.backup_pool = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No backup pool was passed to -b")
-
-                # Dataset
-                if arguments[i] == "-d":
-                    try:
-                        self.dataset = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No dataset was passed to -d")
-
-                # Tag
-                if arguments[i] == "-l":
-                    try:
-                        self.tag = arguments[i+1]
-                    except IndexError:
-                        Tools.die("No tag was passed to -l")
-
-            if not self.backup_pool or not self.dataset:
-                Tools.die("Make sure that both -b <backup pool> and -d <dataset> are set.")
-
-            # Extract source pool name from dataset
-            self.source_pool = self.extract_dataset_pool(self.dataset)
-
-            # Adds pools to check to our list
-            self.pools_to_check.append(self.source_pool)
-            self.pools_to_check.append(self.backup_pool)
-        else:
-            Tools.die("You must pass at least two parameters: zfs_backup -b <backup pool> -d <dataset>")
-
-    # Checks to see that all the pools are imported
-    def check_imports(self):
-        for pool in self.pools_to_check:
-            self.check_pool_import(pool)
-
-    # Checks to see that 'pool' is imported
-    def check_pool_import(self, pool):
-        #print("Checking to see if pool \"" + pool + "\" is imported ...")
-        cmd = zpool_cmd + ' status | grep pool | grep -w ' + pool + " 1> /dev/null"
-
-        result = call(cmd, shell=True)
-
-        if result:
-            Tools.die("Pool \"" + pool + "\" is not imported!")
-
-    # Gets the source pool based on the datasets passed
-    def extract_dataset_pool(self, dataset):
-        return dataset.split("/")[0]
-
-    # Retrieves the snapshots in the dataset
-    def get_snapshots(self, dataset, use_tag):
-        #print("Getting snapshots for " + dataset + " ...")
-
-        common_cmd = zfs_cmd + ' list -H -t snapshot -o name -s name | grep -E "^' + dataset + '"'
-
-        if use_tag == True and self.tag:
-            cmd = common_cmd + ' | grep -E ' + self.tag + '$'
-        else:
-            cmd = common_cmd
-
-        try:
-            return Tools.run(cmd)
-        except CalledProcessError:
-            return []
-
-    # Gets a filtered list of snapshots from the target dataset
-    def get_filtered_snapshots(self, dataset):
-        return self.get_snapshots(dataset, True)
-
-    # Changes a backup dataset name to the corresponding source dataset equivalent
-    # Example: backup/tank/gentoo/root -> tank/gentoo/root
-    def format_to_source(self, dataset):
-        return dataset.partition("/")[2]
-
-    # Changes a backup dataset name to the corresponding source dataset equivalent
-    # Example: tank/gentoo/root -> backup/tank/gentoo/root
-    def format_to_backup(self, dataset):
-        return self.backup_pool + "/" + dataset
-
-    # Finds to see if a common snapshot exists between two datasets in both pools.
-    # This is used to perform an incremental backup.
-    def contains_common(self, last_backup_snapshot, source_list):
-        # The last snapshot in our backup pool must be in the source pool
-        # so that we can use it as our common link for an incremental backup
-        common_snapshot = self.format_to_source(last_backup_snapshot)
-
-        # Found
-        if common_snapshot in source_list:
-            return True
-        # Not Found
-        else:
-            return False
-
-    # Checks to see if the dataset has the required parent datasets
-    # in existence before creating, and if it doesn't, it will create them.
-    def create_dataset_tree_if_needed(self, dataset):
-        parent_dataset = dataset.rpartition("/")
-
-        cmd = zfs_cmd + ' list -H -o name -s name | grep -E -q ^' + parent_dataset[0] + '$'
-
-        if call(cmd, shell=True):
-            create_cmd = zfs_cmd + ' create -p ' + parent_dataset[0]
-
-            if call(create_cmd, shell=True):
-                Tools.die("There was an error creating the target backup dataset: " + parent_dataset[0])
-
-    # Main
-    def start(self):
-        # Retrieve the snapshots that are located in the source pool for this dataset
-        source_pool_snapshots = self.get_snapshots(self.dataset, False)
-        source_pool_snapshots_length = len(source_pool_snapshots)
-
-        # Sets the location of the target dataset name on the backup pool
-        self.backup_pool_dataset_target = self.format_to_backup(self.dataset)
-
-        # Retrieve the snapshots that are located in the backup pool for this dataset
-        backup_pool_snapshots = self.get_snapshots(self.backup_pool_dataset_target, False)
-        backup_pool_snapshots_length = len(backup_pool_snapshots)
-
-        if self.tag:
-            # Retrieve the snapshots that are located in a filtered set of the source pool
-            filtered_pool_snapshots = self.get_filtered_snapshots(self.dataset)
-            filtered_pool_snapshots_length = len(filtered_pool_snapshots)
-
-        print(self.dataset)
-        print("----------")
-        print("> Number of source snapshots: " + str(source_pool_snapshots_length))
-        print("> Number of backup snapshots: " + str(backup_pool_snapshots_length))
-
-        if self.tag:
-            print("> Number of source snapshots (filtered): " + str(filtered_pool_snapshots_length))
-
-        print("")
-
-        if source_pool_snapshots_length == 0:
-            print("No snapshots found for the dataset you want to backup.\n")
-            quit()
-
-        if self.tag and filtered_pool_snapshots_length == 0:
-            print("No snapshots detected with the tag specified.\n")
-            quit()
-
-        # Values shared between various backup methods
-        if self.tag:
-            final_snapshot = filtered_pool_snapshots[filtered_pool_snapshots_length - 1]
-            snapshots_length = filtered_pool_snapshots_length
-        else:
-            final_snapshot = source_pool_snapshots[source_pool_snapshots_length - 1]
-            snapshots_length = source_pool_snapshots_length
-
-        # If one or more snapshots exist in the source pool, but no backups exist in the target pool [ full backup ]
-        if snapshots_length > 0 and backup_pool_snapshots_length == 0:
-            print("No snapshots exist in the backup pool for this dataset.\n")
-            print("Attempting to send a full backup of: " + final_snapshot + " -> " + self.format_to_backup(final_snapshot) + "\n")
-
-            # Let's first check to see that we have the dataset hierarchy in existence and create it if it doesn't.
-            self.create_dataset_tree_if_needed(self.backup_pool_dataset_target)
-
-            # Only send a full backup of that specific snapshot. We won't use -R because we don't
-            # want to also send all of the preceeding snapshots. This saves time and writes.
-            final_cmd = zfs_cmd + ' send -p ' + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
-
-        # If one or more snapshots exist in the source pool, and at least one snapshot exists in the backup pool [ incremental ]
-        elif snapshots_length > 0 and backup_pool_snapshots_length > 0:
-            print("Attempting to do an incremental backup ...\n")
-
-            backup_pool_last_snapshot = backup_pool_snapshots[backup_pool_snapshots_length - 1]
-            backup_pool_snapshot_target = self.format_to_backup(final_snapshot)
-            common_link = self.format_to_source(backup_pool_last_snapshot)
-
-            # Are we already up to date?
-            if backup_pool_snapshot_target == backup_pool_last_snapshot:
-                print(self.dataset + " is already up to date!\n")
-                quit()
-            # The last snapshot in the backup pool needs to be available in the source pool
-            # so that we can use that as the starting point for the incremental backup.
-            elif self.contains_common(backup_pool_last_snapshot, source_pool_snapshots):
-                print("Incrementing: " + backup_pool_last_snapshot + " -> " + backup_pool_snapshot_target + "\n")
-                final_cmd = zfs_cmd + ' send -i ' + common_link + " " + final_snapshot + ' | ' + zfs_cmd + ' recv -vF ' + self.backup_pool_dataset_target
-            else:
-                print("No common link found. Unable to do an incremental backup!\n")
-                quit()
-
-        if not self.force:
-            # Ask the user if they would like to start the backup
-            choice = input("Do you want to start the backup? [y/N]: ")
-            print("")
-
-            if choice == 'y' or choice == 'Y':
-                pass
-            elif choice == 'n' or choice == 'N' or not choice:
-                print("Not backing up. Exiting.")
-                quit()
-            else:
-                Tools.die("Invalid Option. Exiting.")
-
-        call(final_cmd, shell=True)
-        print("")
-
-if __name__ == "__main__":
-    backup = Backup()
-    backup.welcome()
-    backup.check_imports()
-    backup.start()
+echo "This script has been replaced by my new Rust-based rewrite Cantaloupe."
+echo "You can download it at https://github.com/fearedbliss/Cantaloupe"

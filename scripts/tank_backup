@@ -25,19 +25,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# Description: A wrapper script around "zfs_backup".
+# Description: A wrapper script around "cantaloupe".
 
 LABEL="$1"
-SCRIPT_NAME="zfs_backup"
-SCRIPT_PATH="/usr/local/sbin"
+SCRIPT_NAME="cantaloupe"
+SCRIPT_PATH="/root/bin"
 SCRIPT="${SCRIPT_PATH}/${SCRIPT_NAME}"
 BACKUP_POOL="backup"
 
-DATASETS="
-tank
-tank/home
-tank/system
-"
 
 if [ -z "${LABEL}" ]; then
     echo "You must pass a label in order to start a backup."
@@ -58,6 +53,7 @@ if [ $? -eq 1 ]; then
 fi
 
 # Backup each dataset to our backup pool.
-for dataset in ${DATASETS}; do
-    "${SCRIPT}" -f -b "${BACKUP_POOL}" -d "${dataset}" -l "${LABEL}"
-done
+"${SCRIPT}" "${BACKUP_POOL}" "${LABEL}" \
+tank \
+tank/os/main \
+tank/home

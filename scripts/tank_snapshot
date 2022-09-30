@@ -26,7 +26,7 @@
 # SUCH DAMAGE.
 
 SCRIPT_NAME="zfs_snapshot"
-SCRIPT_PATH="/usr/local/sbin"
+SCRIPT_PATH="/root/bin"
 SCRIPT="${SCRIPT_PATH}/${SCRIPT_NAME}"
 
 if [ $# -lt 1 ]; then
@@ -43,6 +43,6 @@ fi
 
 # Takes a controlled snapshot of only the datasets we are interested in.
 "${SCRIPT}" "${LABEL}" \
-    tank \
-    tank/os \
-    tank/home
+tank \
+tank/os/main \
+tank/home
